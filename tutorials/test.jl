@@ -7,6 +7,22 @@ using InteractiveUtils
 # ╔═╡ 131bc788-901c-11ec-2cdf-8f27b4461256
 using RCall
 
+# ╔═╡ 2e957385-eb3f-4631-8339-94522de28680
+# hideall
+title = "Linear model fitting";
+
+# ╔═╡ 71b74b21-0e8b-4bed-81c3-9498ad4ffc5a
+"""
++++
+title = "$title"
++++
+""" |> Base.Text
+
+# ╔═╡ c0c036db-afa4-482a-afb1-127166259801
+md"""
+# $title
+"""
+
 # ╔═╡ a142df38-0d8f-4419-b931-d7fff273015a
 R"getwd()"
 
@@ -430,6 +446,9 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 """
 
 # ╔═╡ Cell order:
+# ╠═2e957385-eb3f-4631-8339-94522de28680
+# ╠═71b74b21-0e8b-4bed-81c3-9498ad4ffc5a
+# ╠═c0c036db-afa4-482a-afb1-127166259801
 # ╠═131bc788-901c-11ec-2cdf-8f27b4461256
 # ╠═a142df38-0d8f-4419-b931-d7fff273015a
 # ╟─00000000-0000-0000-0000-000000000001
