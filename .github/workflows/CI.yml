@@ -24,7 +24,6 @@ jobs:
     - name: Install dependencies
       run: |
         install.packages(c("readr", "dplyr","plantecophys","microbenchmark"))
-        remotes::install_deps(dependencies = TRUE)
       shell: Rscript {0}
     - uses: julia-actions/setup-julia@v1
     - uses: julia-actions/cache@v1
