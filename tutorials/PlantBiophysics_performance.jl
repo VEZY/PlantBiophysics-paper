@@ -11,7 +11,7 @@ begin
 	using Revise
 	using Cropbox
 	using LeafGasExchange
-	using RCall
+	#using RCall
 	using DataFrames
 	using Plots
 	using CSV
@@ -41,10 +41,10 @@ begin
 	PPFD = 1500.      # Absorbed Photosynthetic Photon Flux Density (μmol m-2 s-1)
 	TPU  = 6.         # Triose phosphate utilization-limited photosynthesis rate
 	
-	@rput PPFD
-	@rput g0
-	@rput g1
-	@rput TPU
+	#@rput PPFD
+	#@rput g0
+	#@rput g1
+	#@rput TPU
 end
 
 # ╔═╡ 65d00bf6-8f9a-40b4-947a-fd46ddc89753
@@ -103,41 +103,41 @@ md"
 
 # ╔═╡ 39952139-05b6-4794-bfea-482ffb5107e9
 begin
-	R"""
-	library(plantecophys)
-	library(dplyr)
-	library(readr)
-	library(microbenchmark)
-	time_PE = c()
-	"""
+	##R"""
+	#library(plantecophys)
+	#library(dplyr)
+	#library(readr)
+	#library(microbenchmark)
+	#time_PE = c()
+	#"""
 	
     for i in 1:N
         VPD = 0.61375 * exp((17.502 * 25.) / (25. + 240.97)) - set.Rh[i] * 0.61375 * exp((17.502 * set.T[i]) / (set.T[i] + 240.97))
-        @rput VPD
+        #@rput VPD
         
         df=DataFrame(set[i,:])
-        @rput df
-		R"""
-		function_EB <- function(df,VPD) {
-		res = PhotosynEB(Tair = df$T, VPD = VPD,Wind = df$Wind,
-						Wleaf = df$d,Ca = df$Ca,  StomatalRatio = 1,
-						LeafAbs = df$skyFraction,gsmodel = "BBOpti",g0 = g0, g1 = g1,
-						alpha = 0.24,theta = 0.7, Jmax = df$JMaxRef, 
-						Vcmax = df$VcMaxRef, TPU = TPU,Rd = df$RdRef,
-						RH = df$Rh*100,PPFD=PPFD,
-						Patm = df$P)
-			return(res)
-		}
-		"""
+        #@rput df
+	#	R"""
+	#	function_EB <- function(df,VPD) {
+	#	res = PhotosynEB(Tair = df$T, VPD = VPD,Wind = df$Wind,
+	#					Wleaf = df$d,Ca = df$Ca,  StomatalRatio = 1,
+	#					LeafAbs = df$skyFraction,gsmodel = "BBOpti",g0 = g0, g1 = g1,
+	#					alpha = 0.24,theta = 0.7, Jmax = df$JMaxRef, 
+	#					Vcmax = df$VcMaxRef, TPU = TPU,Rd = df$RdRef,
+	#					RH = df$Rh*100,PPFD=PPFD,
+	#					Patm = df$P)
+	#		return(res)
+	#	}
+	#	"""
 		
-        R"""
-        resBenchmark <- microbenchmark(function_EB(df,VPD), times=1)
-        time_PE = append(time_PE,resBenchmark$time)
-        """
+        #R"""
+        #resBenchmark <- microbenchmark(function_EB(df,VPD), times=1)
+        #time_PE = append(time_PE,resBenchmark$time)
+        #"""
 		print(i)
     end
-    @rget time_PE 
-	time_PE .*= 10e-9
+    #@rget time_PE 
+	#time_PE .*= 10e-9
 end
 
 # ╔═╡ b4a74b07-46f7-4fa7-b925-03d4edcdc83b
@@ -215,7 +215,7 @@ begin
 	end
 	
 	#statsPB=
-	statsPE = basic_stat(time_PE)
+	#statsPE = basic_stat(time_PE)
 	statsLG = basic_stat(time_LG)
 end
 
@@ -238,27 +238,27 @@ We here display the computational time histogram of each package on the same sca
 # ╔═╡ 1adfa147-c980-48c7-a84d-03847ffa8e6a
 begin
 	# FIGURE
-	Plots.plot(layout=grid(2,1),xminorgrid=true,legend=:topleft) # Using `Plots.plot` as `plot` function is defined in Cropbox
+	Plots.plot(layout=grid(1,1),xminorgrid=true,legend=:topleft) # Using `Plots.plot` as `plot` function is defined in Cropbox
 	interval=(0.000001,0.5) # x-axis
 
 	# Ribbon plots (i.e. plot the standard deviation)
 	#Plots.plot!([(stats_timePB.mean-stats_timePB.stddev,0.),(stats_timePB.mean+stats_timePB.stddev,0.),(stats_timePB.mean+stats_timePB.stddev,0.6),(stats_timePB.mean-stats_timePB.stddev,0.6),(stats_timePB.mean-stats_timePB.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=1)
-	Plots.plot!([(statsPE.mean-statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=1,label="[μ-σ, μ+σ]")
-	Plots.plot!([(statsLG.mean-statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=2,label="")
+	#Plots.plot!([(statsPE.mean-statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=1,label="[μ-σ, μ+σ]")
+	Plots.plot!([(statsLG.mean-statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=1,label="")
 
 	# Histogram densities plots
 	#histogram!(time_PB,sp=1,xaxis=(:log10, interval),normalize=:probability,legend=false,bins=200,dpi=300,color=:lightblue,label="")
-	histogram!(time_PE,sp=1,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
-	histogram!(time_LG[2:end],sp=2,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
+	#histogram!(time_PE,sp=1,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
+	histogram!(time_LG[2:end],sp=1,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
 
 	# Mean plotting
 	#Plots.plot!(stats_timePB.mean*[1,1],[0.,0.6],sp=1,linewidth=2,linestyle=:dot,color=:red)
-	Plots.plot!(statsPE.mean*[1,1],[0.,0.6],sp=1,linewidth=2,linestyle=:dot,color=:red,label="Mean")
-	Plots.plot!(statsLG.mean*[1,1],[0.,0.6],sp=2,linewidth=2,linestyle=:dot,color=:red,label="")
+	#Plots.plot!(statsPE.mean*[1,1],[0.,0.6],sp=1,linewidth=2,linestyle=:dot,color=:red,label="Mean")
+	Plots.plot!(statsLG.mean*[1,1],[0.,0.6],sp=1,linewidth=2,linestyle=:dot,color=:red,label="")
 
 	# Annotating (a), (b), (c)
 	annotate!(0.93*interval[2], 0.5, text("(a)", :black, :right, 12),sp=1)
-	annotate!(0.93*interval[2], 0.5, text("(b)", :black, :right, 12),sp=2)
+	#annotate!(0.93*interval[2], 0.5, text("(b)", :black, :right, 12),sp=2)
 	#annotate!(10^-1.2, 0.5, text("(c)", :black, :right, 12),sp=3)
 	xlabel!("time (s)",xguidefontsize=10,sp=2)
 end
