@@ -21,6 +21,14 @@ jobs:
       with:
         persist-credentials: false
     - uses: r-lib/actions/setup-r@master
+    - name: Install dependencies
+        run: |
+          install.packages(c("readr", "dplyr","plantecophys","microbenchmark"))
+          remotes::install_deps(dependencies = TRUE)
+        shell: Rscript {0}
+      - name: Check
+        run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error", check_dir = "check")
+        shell: Rscript {0}
     - uses: julia-actions/setup-julia@v1
     - uses: julia-actions/cache@v1
     - uses: julia-actions/julia-buildpkg@v1
