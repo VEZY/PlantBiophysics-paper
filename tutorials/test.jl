@@ -5,11 +5,13 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 131bc788-901c-11ec-2cdf-8f27b4461256
-using RCall
+#begin
+	#using RCall
+#end
 
 # ╔═╡ 2e957385-eb3f-4631-8339-94522de28680
 # hideall
-title = "Linear model fitting";
+title = "test";
 
 # ╔═╡ 71b74b21-0e8b-4bed-81c3-9498ad4ffc5a
 """
@@ -24,7 +26,10 @@ md"""
 """
 
 # ╔═╡ a142df38-0d8f-4419-b931-d7fff273015a
-R"getwd()"
+begin
+	#R"getwd()"
+	print("hello")
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
