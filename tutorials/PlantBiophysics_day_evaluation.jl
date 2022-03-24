@@ -12,6 +12,8 @@ begin
 	using CSV
 	using Statistics
 	using Plots
+	using MonteCarloMeasurements
+	unsafe_comparisons(true)
 	constants = Constants()
 end
 
@@ -26,7 +28,6 @@ In order to run this Pluto notebook, you must download data from (Medlyn, 2007) 
 md"""
 To do :
 - implement in pb.jl
-- add mcmeasurements
 """
 
 # ╔═╡ 94857d91-1d72-421f-b240-cc1cfca52223
@@ -48,7 +49,9 @@ tree=3
 
 # ╔═╡ be085d43-21e2-45e8-9786-ae5e21e69025
 md"""
-### Function read_medlyn à rajouter à PB.jl
+## Function `read_medlyn`
+
+This function reads Medlyn-data file in a `PlantBiophysics.jl` compatible way.
 """
 
 # ╔═╡ bdb8cb37-47be-49a3-a63c-85d5c043ceda
@@ -74,7 +77,7 @@ function read_medlyn(file)
 
     # Recomputing the variables to fit the units used in the package:
     #df[!,:VPD] = round.(df[:,:VPD] .* df[:,:P] ./ 1000.0, digits = 3)
-    df[!,:gs] = round.(gsw_to_gsc.(df[:,:gs]) ./ 1000.0, digits = 5)
+    df[!,:gs] = round.(gsw_to_gsc.(df[:,:gs]), digits = 5)
     df[!,:AVPD] = df[:,:A] ./ (df[:,:Cₐ] .* sqrt.(df[:,:Dₗ]))
     df[!,:Rh] = df[!,:Rh] ./ 100.0
 
@@ -86,7 +89,7 @@ function fit_Medlyn2(df)
     x = df.A ./ df.Cₐ
     y = sqrt.(df.Dₗ)
     gs = df.gs
-    gs=gs[x.>0]*1000
+    gs=gs[x.>0]
     y=y[x.>0]
     x=x[x.>0]
     ind = sortperm(x ./y)
@@ -107,7 +110,7 @@ begin
 	df = read_medlyn(file)
 	day = df[df.Date.==date,:]
 	day = day[day.Tree.==tree,:]
-	day.Asim .= day.Esim .= day.Gssim .= day.Dlsim .= day.Tlsim .= 0.
+	day.Asim .= day.Esim .= day.Gssim .= day.Dlsim .= day.Tlsim .= 0. ± 0.
 	day
 end
 
@@ -126,18 +129,18 @@ end
 md"""
 ## Simulating
 
-Here we simulate and store 5 variables: net carbon assimilation A (μmol.m⁻².s⁻¹), transpiration E (mmol.m⁻².s⁻¹), carbon stomatal conductance Gₛ (mol.m⁻².s⁻¹), vapour pressure deficit Dₗ (kPa) and leaf temperature Tₗ (°C).
+Here we simulate and store 5 variables: net carbon assimilation A (μmol.m⁻².s⁻¹), transpiration E (mol.m⁻².s⁻¹), carbon stomatal conductance Gₛ (mol.m⁻².s⁻¹), vapour pressure deficit Dₗ (kPa) and leaf temperature Tₗ (°C).
 """
 
 # ╔═╡ a1be516a-3b10-4c4a-a219-7e34d3e8edd7
 begin
 	for i in 1:size(day,1)
-	    meteo = Atmosphere(T = day.T[i], Wind = 50., P = day.P[i], Rh = day.Rh[i],Cₐ= day.Cₐ[i])
+	    meteo = Atmosphere(T = day.T[i] ± 0.1, Wind = 40. ± 10., P = day.P[i] ± 0.001*day.P[i], Rh = day.Rh[i] ± 0.01 ,Cₐ= day.Cₐ[i] ± 1.)
 	    leaf = LeafModels(energy = Monteith(),
 	        photosynthesis = Fvcb(VcMaxRef=VcMaxRef,JMaxRef=JMaxRef,RdRef=RdRef,TPURef=TPURef),
-	        stomatal_conductance = Medlyn(g0, g1),
-	        Rₛ = (day.PPFD[i])/4.57, sky_fraction =1., 
-	        PPFD = day.PPFD[i], d = 0.1)
+        stomatal_conductance = Medlyn(g0, g1),
+        Rₛ = (day.PPFD[i] ± 0.1*day.PPFD[i])/4.57, sky_fraction =1. ± 0., 
+        PPFD = day.PPFD[i] ± 0.1*day.PPFD[i], d = 0.05 .. 0.20)
 	    energy_balance!(leaf,meteo)
 	    day.Asim[i] = leaf[:A]
 		day.Esim[i] = leaf[:λE]/(meteo.λ * constants.Mₕ₂ₒ)*1000.
@@ -156,7 +159,7 @@ md"""
 # ╔═╡ f267250a-9950-427e-ad46-f5ee9f25136b
 begin
 	scatter(day.Time,day.Dₗ,label="data",markershape=:star5,markercolor=:white)
-	plot!(day.Time,day.Dlsim,label="simulation",leg=:bottomright,color=:black)
+	ribbonplot!(day.Time,day.Dlsim,label="simulation",leg=:bottomright,color=:black)
 	xlabel!("Time (hh:mm:ss)")
 	ylabel!("Vapour pressure deficit (kPa)")
 	title!("Vapour pressure deficit in day "*date*" and tree "*string(tree))
@@ -165,7 +168,7 @@ end
 # ╔═╡ f715f3c4-90b9-4e6d-a8a2-730de6052008
 begin
 	scatter(day.Time,day.A,label="data",markershape=:star5,markercolor=:white)
-	plot!(day.Time,day.Asim,label="simulation",leg=:best,color=:black)
+	ribbonplot!(day.Time,day.Asim,label="simulation",leg=:best,color=:black)
 	xlabel!("Time (hh:mm:ss)")
 	ylabel!("Net carbon assimilation (μmol.m⁻².s⁻¹)")
 	title!("Net carbon assimilation in day "*date*" and tree "*string(tree))
@@ -174,16 +177,16 @@ end
 # ╔═╡ 3bea86dd-9c97-4828-ba8d-287517ca7530
 begin
 	scatter(day.Time,day.Trmmol,label="data",markershape=:star5,markercolor=:white)
-	plot!(day.Time,day.Esim,label="simulation",leg=:bottomright,color=:black)
+	ribbonplot!(day.Time,day.Esim,label="simulation",leg=:bottomright,color=:black)
 	xlabel!("Time (hh:mm:ss)")
-	ylabel!("Transpiration (mmol.m⁻².s⁻¹)")
+	ylabel!("Transpiration (mol.m⁻².s⁻¹)")
 	title!("Transpiration in day "*date*" and tree "*string(tree))
 end
 
 # ╔═╡ 94f3e683-8ad7-40b9-be7c-1ae148bc0808
 begin
-	scatter(day.Time,day.gs.*1000,label="data",markershape=:star5,markercolor=:white)
-	plot!(day.Time,day.Gssim,label="simulation",leg=:topright,color=:black)
+	scatter(day.Time,day.gs,label="data",markershape=:star5,markercolor=:white)
+	ribbonplot!(day.Time,day.Gssim,label="simulation",leg=:topright,color=:black)
 	xlabel!("Time (hh:mm:ss)")
 	ylabel!("Stomatal conductance (mol.m⁻².s⁻¹)")
 	title!("Stomatal conductance in day "*date*" and tree "*string(tree))
@@ -192,7 +195,7 @@ end
 # ╔═╡ 84e0228a-5ba7-4926-8d6f-0780a0fca66e
 begin
 	scatter(day.Time,day.Tₗ,label="data",markershape=:star5,markercolor=:white)
-	plot!(day.Time,day.Tlsim,label="simulation",leg=:topright,color=:black)
+	ribbonplot!(day.Time,day.Tlsim,label="simulation",leg=:topright,color=:black)
 	xlabel!("Time (hh:mm:ss)")
 	ylabel!("Leaf temperature (°C)")
 	title!("Leaf temperature in day "*date*" and tree "*string(tree))
@@ -204,6 +207,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
 PlantBiophysics = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -212,6 +216,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 AlgebraOfGraphics = "~0.6.5"
 CSV = "~0.10.3"
 DataFrames = "~1.3.2"
+MonteCarloMeasurements = "~1.0.8"
 PlantBiophysics = "~0.2.0"
 Plots = "~1.27.2"
 """
@@ -296,6 +301,12 @@ git-tree-sha1 = "ecdec412a9abc8db54c0efc5548c64dfce072058"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
 version = "0.5.10"
 
+[[deps.BitTwiddlingConvenienceFunctions]]
+deps = ["Static"]
+git-tree-sha1 = "28bbdbf0354959db89358d1d79d421ff31ef0b5e"
+uuid = "62783981-4cbd-42fc-bca8-16325de8dc4b"
+version = "0.1.3"
+
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
@@ -306,6 +317,12 @@ version = "1.0.8+0"
 git-tree-sha1 = "215a9aa4a1f23fbd05b92769fdd62559488d70e9"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.4.1"
+
+[[deps.CPUSummary]]
+deps = ["Hwloc", "IfElse", "Preferences", "Static"]
+git-tree-sha1 = "7f5830799ee4f40a143f40d6943d421ce985ed88"
+uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
+version = "0.1.17"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings"]
@@ -710,6 +727,24 @@ git-tree-sha1 = "129acf094d168394e80ee1dc4bc06ec835e510a3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.8.1+1"
 
+[[deps.HostCPUFeatures]]
+deps = ["BitTwiddlingConvenienceFunctions", "IfElse", "Libdl", "Static"]
+git-tree-sha1 = "18be5268cf415b5e27f34980ed25a7d34261aa83"
+uuid = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
+version = "0.1.7"
+
+[[deps.Hwloc]]
+deps = ["Hwloc_jll"]
+git-tree-sha1 = "92d99146066c5c6888d5a3abc871e6a214388b91"
+uuid = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
+version = "2.0.0"
+
+[[deps.Hwloc_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "d8bccde6fc8300703673ef9e1383b11403ac1313"
+uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
+version = "2.7.0+0"
+
 [[deps.HypergeometricFunctions]]
 deps = ["DualNumbers", "LinearAlgebra", "SpecialFunctions", "Test"]
 git-tree-sha1 = "65e4589030ef3c44d3b90bdc5aac462b4bb05567"
@@ -890,6 +925,12 @@ git-tree-sha1 = "4f00cc36fede3c04b8acf9b2e2763decfdcecfa6"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
 version = "0.15.13"
 
+[[deps.LayoutPointers]]
+deps = ["ArrayInterface", "LinearAlgebra", "ManualMemory", "SIMDTypes", "Static"]
+git-tree-sha1 = "b651f573812d6c36c22c944dd66ef3ab2283dfa1"
+uuid = "10f19ff3-798f-405d-979b-55457f8fc047"
+version = "0.1.6"
+
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
@@ -1010,6 +1051,11 @@ git-tree-sha1 = "c5fb1bfac781db766f9e4aef96adc19a729bc9b2"
 uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
 version = "0.2.1"
 
+[[deps.ManualMemory]]
+git-tree-sha1 = "bcaef4fc7a0cfe2cba636d84cda54b5e4e4ca3cd"
+uuid = "d125e4d3-2237-4719-b19c-fa641b8a4667"
+version = "0.1.8"
+
 [[deps.MappedArrays]]
 git-tree-sha1 = "e8b359ef06ec72e8c030463fe02efe5527ee5142"
 uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
@@ -1059,6 +1105,12 @@ version = "1.0.2"
 
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
+
+[[deps.MonteCarloMeasurements]]
+deps = ["Distributed", "Distributions", "LinearAlgebra", "MacroTools", "Random", "RecipesBase", "Requires", "SLEEFPirates", "StaticArrays", "Statistics", "StatsBase", "Test"]
+git-tree-sha1 = "03619e255664666b352a5e5f6b45e8b00d439870"
+uuid = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
+version = "1.0.8"
 
 [[deps.MosaicViews]]
 deps = ["MappedArrays", "OffsetArrays", "PaddedViews", "StackViews"]
@@ -1367,6 +1419,17 @@ git-tree-sha1 = "7dbc15af7ed5f751a82bf3ed37757adf76c32402"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
 version = "3.4.1"
 
+[[deps.SIMDTypes]]
+git-tree-sha1 = "330289636fb8107c5f32088d2741e9fd7a061a5c"
+uuid = "94e857df-77ce-4151-89e5-788b33177be4"
+version = "0.1.0"
+
+[[deps.SLEEFPirates]]
+deps = ["IfElse", "Static", "VectorizationBase"]
+git-tree-sha1 = "d4c366b135fc2e1af7a000473e08edc5afd94819"
+uuid = "476501e8-09a2-5ece-8869-fb82de89a1fa"
+version = "0.6.31"
+
 [[deps.ScanByte]]
 deps = ["Libdl", "SIMD"]
 git-tree-sha1 = "9cc2955f2a254b18be655a4ee70bc4031b2b189e"
@@ -1572,6 +1635,12 @@ version = "0.4.1"
 git-tree-sha1 = "34db80951901073501137bdbc3d5a8e7bbd06670"
 uuid = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 version = "0.1.2"
+
+[[deps.VectorizationBase]]
+deps = ["ArrayInterface", "CPUSummary", "HostCPUFeatures", "Hwloc", "IfElse", "LayoutPointers", "Libdl", "LinearAlgebra", "SIMDTypes", "Static"]
+git-tree-sha1 = "1901efb08ce6c4526ddf7fdfa9181dc3593fe6a2"
+uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
+version = "0.21.25"
 
 [[deps.Wayland_jll]]
 deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg", "XML2_jll"]
@@ -1840,9 +1909,9 @@ version = "0.9.1+5"
 # ╟─9d68ff54-8066-45ee-8e53-1e097b18bbdc
 # ╟─be085d43-21e2-45e8-9786-ae5e21e69025
 # ╟─bdb8cb37-47be-49a3-a63c-85d5c043ceda
-# ╟─bd40514e-0cfa-4830-8e7d-6558c18cd79e
+# ╠═bd40514e-0cfa-4830-8e7d-6558c18cd79e
 # ╟─7c532414-cf98-4ab9-989e-d8770151c1c4
-# ╟─490cec9f-5709-422f-b59b-cc1a466b7b5b
+# ╠═490cec9f-5709-422f-b59b-cc1a466b7b5b
 # ╟─921ee23d-3159-4a83-b29d-87541c2c10d6
 # ╟─84818aed-10c2-4bcd-8584-5a32fdfeb839
 # ╟─5da5a876-5986-44bb-8ae1-fae83c5e626f
