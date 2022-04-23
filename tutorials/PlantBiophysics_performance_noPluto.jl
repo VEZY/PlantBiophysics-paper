@@ -9,7 +9,7 @@ using Plots
 using CSV
 
 # Parameters : 
-N    = 1000        # Length of the random imput set
+N    = 100000        # Length of the random imput set
 PPFD = 1500.      # Absorbed Photosynthetic Photon Flux Density (μmol m-2 s-1)
 @rput PPFD
 
@@ -158,10 +158,11 @@ factorLG = mean(time_LG ./ time_PB)
 ######################################################################################################
 
 Plots.plot(layout=grid(3,1),xminorgrid=true) # Using `Plots.plot` as `plot` function is defined in Cropbox
-interval=(0.00000001,0.5) # x-axis
+interval=(0.000001,0.5) # x-axis
 
 # Ribbon plots (i.e. plot the standard deviation)
-Plots.plot!([(max(1e-9,statsPB.mean-statsPB.stddev),0.),(statsPB.mean+statsPB.stddev,0.),(statsPB.mean+statsPB.stddev,0.6),(statsPB.mean-statsPB.stddev,0.6),(statsPB.mean-statsPB.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=1,label="[μ-σ, μ+σ]")
+eps=1e-6 # limits for PlantBiophysics.jl standard deviation: sometimes the lower limit of the interval is negative and there are problems with logscale
+Plots.plot!([(max(eps,statsPB.mean-statsPB.stddev),0.),(statsPB.mean+statsPB.stddev,0.),(statsPB.mean+statsPB.stddev,0.6),(max(eps,statsPB.mean-statsPB.stddev),0.6),(max(eps,statsPB.mean-statsPB.stddev),0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=1,label="[μ-σ, μ+σ]")
 Plots.plot!([(statsPE.mean-statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=2,label="")
 Plots.plot!([(statsLG.mean-statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=3,label="")
 
@@ -181,3 +182,5 @@ annotate!(0.9*interval[2], 0.68, Plots.text("(b) plantecophys", :black, :right, 
 annotate!(0.9*interval[2], 0.68, Plots.text("(c) LeafGasExchange.jl", :black, :right, 9),sp=3)
 Plots.xlabel!("time (s)",xguidefontsize=10,sp=3)
 Plots.ylabel!("density",xguidefontsize=10,sp=2)
+
+savefig("fig")
