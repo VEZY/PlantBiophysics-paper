@@ -24,12 +24,6 @@ md"# Day simulation with _PlantBiophysics.jl_
 In order to run this Pluto notebook, you must download data from (Medlyn, 2007) at this link: [Medlyn data](https://figshare.com/articles/dataset/Tumbarumba_Gas_Exchange/1538079). 
 "
 
-# ╔═╡ 60362317-9002-4bcb-b823-a901d9f204d4
-md"""
-To do :
-- implement in pb.jl
-"""
-
 # ╔═╡ 94857d91-1d72-421f-b240-cc1cfca52223
 md"""
 ## User parameters
@@ -84,21 +78,6 @@ function read_medlyn(file)
     return df
 end
 
-# ╔═╡ bd40514e-0cfa-4830-8e7d-6558c18cd79e
-function fit_Medlyn2(df)
-    x = df.A ./ df.Cₐ
-    y = sqrt.(df.Dₗ)
-    gs = df.gs
-    gs=gs[x.>0]
-    y=y[x.>0]
-    x=x[x.>0]
-    ind = sortperm(x ./y)
-    A = [ones(length(x)) x[ind] ./y[ind]]
-    f = gs[ind] .- x[ind]
-    sol = inv(A'*A)*A'*f
-    return sol
-end
-
 # ╔═╡ 7c532414-cf98-4ab9-989e-d8770151c1c4
 md"""
 ## Downloading and filtering data
@@ -122,7 +101,7 @@ md"""
 # ╔═╡ 84818aed-10c2-4bcd-8584-5a32fdfeb839
 begin
 	VcMaxRef,JMaxRef,RdRef,TPURef = PlantBiophysics.fit(Fvcb,day)
-	g0,g1 = fit_Medlyn2(day)
+	g0,g1 = PlantBiophysics.fit(Medlyn,day)
 end
 
 # ╔═╡ 5da5a876-5986-44bb-8ae1-fae83c5e626f
@@ -741,9 +720,9 @@ version = "2.0.0"
 
 [[deps.Hwloc_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "d8bccde6fc8300703673ef9e1383b11403ac1313"
+git-tree-sha1 = "303d70c961317c4c20fafaf5dbe0e6d610c38542"
 uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
-version = "2.7.0+0"
+version = "2.7.1+0"
 
 [[deps.HypergeometricFunctions]]
 deps = ["DualNumbers", "LinearAlgebra", "SpecialFunctions", "Test"]
@@ -1335,9 +1314,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "afadeba63d90ff223a6a48d2009434ecee2ec9e8"
+git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.7.1"
+version = "1.7.2"
 
 [[deps.QOI]]
 deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
@@ -1901,15 +1880,13 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╟─784cf9f4-ab7b-11ec-3405-8f1583059c6e
-# ╟─f8c48f62-e16e-4f39-9375-a5b7b7bf23b7
-# ╟─60362317-9002-4bcb-b823-a901d9f204d4
-# ╟─94857d91-1d72-421f-b240-cc1cfca52223
-# ╟─b470b4e4-3580-4b8f-b1e1-e24b649ada9d
+# ╠═f8c48f62-e16e-4f39-9375-a5b7b7bf23b7
+# ╠═94857d91-1d72-421f-b240-cc1cfca52223
+# ╠═b470b4e4-3580-4b8f-b1e1-e24b649ada9d
 # ╟─02e27833-9eaf-4b98-a9e8-31682eee9dcb
 # ╟─9d68ff54-8066-45ee-8e53-1e097b18bbdc
 # ╟─be085d43-21e2-45e8-9786-ae5e21e69025
-# ╟─bdb8cb37-47be-49a3-a63c-85d5c043ceda
-# ╠═bd40514e-0cfa-4830-8e7d-6558c18cd79e
+# ╠═bdb8cb37-47be-49a3-a63c-85d5c043ceda
 # ╟─7c532414-cf98-4ab9-989e-d8770151c1c4
 # ╠═490cec9f-5709-422f-b59b-cc1a466b7b5b
 # ╟─921ee23d-3159-4a83-b29d-87541c2c10d6
