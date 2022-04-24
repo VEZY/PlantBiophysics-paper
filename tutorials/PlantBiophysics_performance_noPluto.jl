@@ -158,7 +158,7 @@ factorLG = mean(time_LG ./ time_PB)
 ######################################################################################################
 
 Plots.plot(layout=grid(3,1),xminorgrid=true) # Using `Plots.plot` as `plot` function is defined in Cropbox
-interval=(0.000001,0.5) # x-axis
+interval=(1e-6,0.5) # x-axis
 
 # Ribbon plots (i.e. plot the standard deviation)
 eps=1e-6 # limits for PlantBiophysics.jl standard deviation: sometimes the lower limit of the interval is negative and there are problems with logscale
@@ -167,9 +167,9 @@ Plots.plot!([(statsPE.mean-statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.),(
 Plots.plot!([(statsLG.mean-statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=3,label="")
 
 # Histogram densities plots
-histogram!(time_PB[2:end],sp=1,xaxis=(:log10, interval),normalize=:probability,legend=false,bins=30,dpi=300,color=:lightblue,label="")
-histogram!(time_PE[2:end],sp=2,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
-histogram!(time_LG[2:end],sp=3,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
+histogram!(time_PB[time_PB.<1e-4],sp=1,xaxis=(:log10, interval),normalize=:probability,legend=false,bins=100,dpi=300,color=:lightblue,label="")
+histogram!(time_PE[time_PE.<1e-0],sp=2,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
+histogram!(time_LG[time_LG.<1e-1],sp=3,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
 
 # Mean plotting
 Plots.plot!(statsPB.mean*[1,1],[0.,0.6],sp=1,linewidth=2,linestyle=:dot,color=:red,label="Mean μ",legend=:bottomright)
@@ -182,5 +182,13 @@ annotate!(0.9*interval[2], 0.68, Plots.text("(b) plantecophys", :black, :right, 
 annotate!(0.9*interval[2], 0.68, Plots.text("(c) LeafGasExchange.jl", :black, :right, 9),sp=3)
 Plots.xlabel!("time (s)",xguidefontsize=10,sp=3)
 Plots.ylabel!("density",xguidefontsize=10,sp=2)
+Plots.xticks!([1e-6,1e-5,1e-4,1e-3,1e-2,1e-1])
 
+######################################################################################################
+# SAVING
+######################################################################################################
 savefig("fig")
+
+perfs = DataFrame("TimePB" => time_PB, "TimeLGE" => time_LG,"TimePE" => time_PE)
+perfs = hcat(set,perfs)
+CSV.write("Simulations_temps_"*string(N)*".csv",perfs)
