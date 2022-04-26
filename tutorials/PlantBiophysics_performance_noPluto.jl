@@ -5,9 +5,9 @@ using PlantBiophysics
 
 # Parameters :
 Random.seed!(1)
-microbenchmark_steps = 10 # Number of times the microbenchmark is run
+microbenchmark_steps = 100 # Number of times the microbenchmark is run
 microbenchmark_evals = 1 # Number of times each sample is run to be sure of the output
-N = 10        # Number of timesteps simulated for each microbenchmark step
+N = 100        # Number of timesteps simulated for each microbenchmark step
 
 # Create the ranges of input parameters
 length_range = 10000
@@ -90,6 +90,7 @@ for(i in seq_len(N)){
 ######################################################################################################
 
 time_LG = []
+n_lg = fill(0, N)
 for i in 1:N
     config = :Weather => (
         PFD=set.PPFD[i],
@@ -107,6 +108,7 @@ for i in 1:N
     )
     b_LG = @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples = microbenchmark_steps
     append!(time_LG, b_LG.times .* 1e-9) # transform in seconds
+    n_lg[i] = 1
 end
 
 ######################################################################################################
@@ -160,8 +162,8 @@ statsPB = basic_stat(time_PB)
 statsPE = basic_stat(time_PE)
 statsLG = basic_stat(time_LG)
 
-factorPE = mean(time_PE ./ time_PB)
-factorLG = mean(time_LG ./ time_PB)
+factorPE = mean(time_PE) / mean(time_PB)
+factorLG = mean(time_LG) / mean(time_PB)
 
 ######################################################################################################
 # PLOTTING
@@ -169,10 +171,9 @@ factorLG = mean(time_LG ./ time_PB)
 
 function plot_benchmark(statsPB, statsPE, statsLG)
     Plots.plot(layout=grid(3, 1), xminorgrid=true) # Using `Plots.plot` as `plot` function is defined in Cropbox
-    interval = (1e-6, 0.5) # x-axis
-
+    interval = (1e-6, 0.0) # x-axis
     # Ribbon plots (i.e. plot the standard deviation)
-    eps = 1e-6 # limits for PlantBiophysics.jl standard deviation: sometimes the lower limit of the interval is negative and there are problems with logscale
+    eps = 1e-9 # limits for PlantBiophysics.jl standard deviation: sometimes the lower limit of the interval is negative and there are problems with logscale
     Plots.plot!(
         [
             (max(eps, statsPB.mean - statsPB.stddev), 0.0),
@@ -210,17 +211,18 @@ function plot_benchmark(statsPB, statsPE, statsLG)
     histogram!(time_LG[time_LG.<1e-1], sp=3, xaxis=(:log10, interval), normalize=:probability, bins=30, dpi=300, color=:lightblue, label="")
 
     # Mean plotting
-    Plots.plot!(statsPB.mean * [1, 1], [0.0, 0.6], sp=1, linewidth=2, linestyle=:dot, color=:red, label="Mean μ", legend=:bottomright)
+    Plots.plot!(statsPB.mean * [1, 1], [0.0, 0.6], sp=1, linewidth=2, linestyle=:dot, color=:red, label="Mean μ", legend=:topright)
     Plots.plot!(statsPE.mean * [1, 1], [0.0, 0.6], sp=2, linewidth=2, linestyle=:dot, color=:red, label="")
     Plots.plot!(statsLG.mean * [1, 1], [0.0, 0.6], sp=3, linewidth=2, linestyle=:dot, color=:red, label="")
 
     # Annotating (a), (b), (c)
-    annotate!(0.9 * interval[2], 0.62, Plots.text("(a) PlantBiophysics.jl", :black, :right, 9), sp=1)
-    annotate!(0.9 * interval[2], 0.68, Plots.text("(b) plantecophys", :black, :right, 9), sp=2)
-    annotate!(0.9 * interval[2], 0.68, Plots.text("(c) LeafGasExchange.jl", :black, :right, 9), sp=3)
+    annotate!(1.5e-6, 1.0, Plots.text("(a) PlantBiophysics.jl", :black, :left, 9), sp=1)
+    annotate!(1.5e-6, 1.0, Plots.text("(b) plantecophys", :black, :left, 9), sp=2)
+    annotate!(1.5e-6, 1.0, Plots.text("(c) LeafGasExchange.jl", :black, :left, 9), sp=3)
     Plots.xlabel!("time (s)", xguidefontsize=10, sp=3)
     Plots.ylabel!("density", xguidefontsize=10, sp=2)
     Plots.xticks!([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1])
+    ylims!(0.0, 1.0)
 end
 
 ######################################################################################################
@@ -230,9 +232,9 @@ end
 plot_benchmark(statsPB, statsPE, statsLG)
 savefig("benchmark_each_time_steps.png")
 
-perfs = DataFrame("TimePB" => time_PB, "TimeLGE" => time_LG, "TimePE" => time_PE)
-perfs = hcat(set, perfs)
-CSV.write("Simulation_times_" * string(N) * ".csv", perfs)
+# perfs = DataFrame("TimePB" => time_PB, "TimeLGE" => time_LG, "TimePE" => time_PE)
+# perfs = hcat(set, perfs)
+# CSV.write("Simulation_times_" * string(N) * ".csv", perfs)
 
 
 ######################################################################################################
@@ -341,6 +343,6 @@ statsLG2 = basic_stat(time_LG2)
 plot_benchmark(statsPB2, statsPE2, statsLG2)
 savefig("benchmark_all_steps.png")
 
-perfs2 = DataFrame("TimePB" => time_PB2, "TimeLGE" => time_LG2, "TimePE" => time_PE2)
-perfs2 = hcat(set2, perfs2)
-CSV.write("Simulation_times_" * string(N2) * "_all.csv", perfs2)
+# perfs2 = DataFrame("TimePB" => time_PB2, "TimeLGE" => time_LG2, "TimePE" => time_PE2)
+# perfs2 = hcat(set2, perfs2)
+# CSV.write("Simulation_times_" * string(N2) * "_all.csv", perfs2)
