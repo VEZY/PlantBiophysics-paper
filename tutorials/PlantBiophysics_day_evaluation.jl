@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.1
+# v0.19.3
 
 using Markdown
 using InteractiveUtils
@@ -41,16 +41,41 @@ date="14/11/2001"
 # ╔═╡ 9d68ff54-8066-45ee-8e53-1e097b18bbdc
 tree=3
 
-# ╔═╡ be085d43-21e2-45e8-9786-ae5e21e69025
+# ╔═╡ 7c532414-cf98-4ab9-989e-d8770151c1c4
 md"""
-## Function `read_medlyn`
+## Downloading and filtering data
+"""
 
-This function reads Medlyn-data file in a `PlantBiophysics.jl` compatible way.
+# ╔═╡ 921ee23d-3159-4a83-b29d-87541c2c10d6
+md"""
+## Fitting parameters
+"""
+
+# ╔═╡ 5da5a876-5986-44bb-8ae1-fae83c5e626f
+md"""
+## Simulating
+
+Here we simulate and store 5 variables: net carbon assimilation A (μmol.m⁻².s⁻¹), transpiration E (mol.m⁻².s⁻¹), carbon stomatal conductance Gₛ (mol.m⁻².s⁻¹), vapour pressure deficit Dₗ (kPa) and leaf temperature Tₗ (°C).
+"""
+
+# ╔═╡ 7bdc02d9-f7d7-48df-babc-1c5630f5a39d
+md"""
+## Plotting results
+"""
+
+# ╔═╡ 87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
+md"""
+# References
 """
 
 # ╔═╡ bdb8cb37-47be-49a3-a63c-85d5c043ceda
+"""
+	read_medlyn(file)
+
+Reads Medlyn's data file in a `PlantBiophysics.jl` compatible way.
+"""
 function read_medlyn(file)
-    df = CSV.read(file, DataFrame, header = 1, datarow = 3)
+    df = CSV.read(file, DataFrame, header = 1, skipto = 3)
 
     if hasproperty(df, :Ttop)
         rename!(df, :Ttop => :Tmin)
@@ -78,11 +103,6 @@ function read_medlyn(file)
     return df
 end
 
-# ╔═╡ 7c532414-cf98-4ab9-989e-d8770151c1c4
-md"""
-## Downloading and filtering data
-"""
-
 # ╔═╡ 490cec9f-5709-422f-b59b-cc1a466b7b5b
 begin
 	file = datapath*"/TumbarumbaGasex_Spot_Medlyn.csv"
@@ -93,23 +113,11 @@ begin
 	day
 end
 
-# ╔═╡ 921ee23d-3159-4a83-b29d-87541c2c10d6
-md"""
-## Fitting parameters
-"""
-
 # ╔═╡ 84818aed-10c2-4bcd-8584-5a32fdfeb839
 begin
 	VcMaxRef,JMaxRef,RdRef,TPURef = PlantBiophysics.fit(Fvcb,day)
 	g0,g1 = PlantBiophysics.fit(Medlyn,day)
 end
-
-# ╔═╡ 5da5a876-5986-44bb-8ae1-fae83c5e626f
-md"""
-## Simulating
-
-Here we simulate and store 5 variables: net carbon assimilation A (μmol.m⁻².s⁻¹), transpiration E (mol.m⁻².s⁻¹), carbon stomatal conductance Gₛ (mol.m⁻².s⁻¹), vapour pressure deficit Dₗ (kPa) and leaf temperature Tₗ (°C).
-"""
 
 # ╔═╡ a1be516a-3b10-4c4a-a219-7e34d3e8edd7
 begin
@@ -129,11 +137,6 @@ begin
 	end
 	day
 end
-
-# ╔═╡ 7bdc02d9-f7d7-48df-babc-1c5630f5a39d
-md"""
-## Plotting results
-"""
 
 # ╔═╡ f267250a-9950-427e-ad46-f5ee9f25136b
 begin
@@ -204,7 +207,7 @@ Plots = "~1.27.2"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.1"
+julia_version = "1.7.2"
 manifest_format = "2.0"
 
 [[deps.AbstractFFTs]]
@@ -1326,9 +1329,9 @@ version = "1.0.0"
 
 [[deps.Qt5Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
-git-tree-sha1 = "ad368663a5e20dbb8d6dc2fddeefe4dae0781ae8"
+git-tree-sha1 = "c6c0f690d0cc7caddb74cef7aa847b824a16b256"
 uuid = "ea2cea3b-5b76-57ae-a6ef-0a8af62496e1"
-version = "5.15.3+0"
+version = "5.15.3+1"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
@@ -1881,12 +1884,10 @@ version = "0.9.1+5"
 # ╔═╡ Cell order:
 # ╟─784cf9f4-ab7b-11ec-3405-8f1583059c6e
 # ╠═f8c48f62-e16e-4f39-9375-a5b7b7bf23b7
-# ╠═94857d91-1d72-421f-b240-cc1cfca52223
+# ╟─94857d91-1d72-421f-b240-cc1cfca52223
 # ╠═b470b4e4-3580-4b8f-b1e1-e24b649ada9d
 # ╟─02e27833-9eaf-4b98-a9e8-31682eee9dcb
 # ╟─9d68ff54-8066-45ee-8e53-1e097b18bbdc
-# ╟─be085d43-21e2-45e8-9786-ae5e21e69025
-# ╠═bdb8cb37-47be-49a3-a63c-85d5c043ceda
 # ╟─7c532414-cf98-4ab9-989e-d8770151c1c4
 # ╠═490cec9f-5709-422f-b59b-cc1a466b7b5b
 # ╟─921ee23d-3159-4a83-b29d-87541c2c10d6
@@ -1899,5 +1900,7 @@ version = "0.9.1+5"
 # ╟─3bea86dd-9c97-4828-ba8d-287517ca7530
 # ╟─94f3e683-8ad7-40b9-be7c-1ae148bc0808
 # ╟─84e0228a-5ba7-4926-8d6f-0780a0fca66e
+# ╟─87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
+# ╟─bdb8cb37-47be-49a3-a63c-85d5c043ceda
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
