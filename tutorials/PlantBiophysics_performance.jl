@@ -1,108 +1,115 @@
 ### A Pluto.jl notebook ###
-# v0.18.1
+# v0.19.3
 
 using Markdown
 using InteractiveUtils
 
 # ╔═╡ 211f1a10-061d-452a-b061-aa5eb5f07428
 begin
-	using Pkg
-	using Statistics
+	using PlantBiophysics
 	using Cropbox
 	using LeafGasExchange
 	using RCall
+	using Statistics
 	using DataFrames
-	using Plots
+	using CairoMakie
 	using CSV
-	using PlantBiophysics
+	using Random
+	using BenchmarkTools
 end
 
 # ╔═╡ 994a4062-39cf-49b7-b19e-63ff90e9a574
-md"# Performance evaluation and comparison of _PlantBiophysics.jl_
+md"""
 
-###### Important:  
-In order to run this Pluto notebook, you must install R and the following libraries: `readr`, `dplyr`, `plantecophys` and `microbenchmark`. Run the command `install.packages(c('readr', 'dplyr','plantecophys','microbenchmark'))`
+# _PlantBiophysics.jl_ benchmark
 
-The main objective of this notebook is to compare computational time of `PlantBiophysics.jl` against computational times of R package `plantecophys` and `Julia` package `LeafGasExchange.jl` (in the framework of `Cropbox.jl`). Three steps are here encoded: 
-- first, create a N-large basis of random conditions.
-- then, benchmark the computational time of the three packages via three similar functions (_i.e._ photosynthesis-stomatal conductance-energy balance coupled model for C3 leaves): `energy_balance`, `photosynEB` and `simulate` with `ModelC3MD`.
-- finally, compare the results with plots and statistics."
+The main objective of this notebook is to compare the computational times of `PlantBiophysics.jl` against the `plantecophys` R package and the `LeafGasExchange.jl` Julia package from the `Cropbox.jl` framework. The comparison follows three steps: 
+- create an N-large basis of random conditions.
+- benchmark the computational time of the three packages via similar functions (_i.e._ photosynthesis-stomatal conductance-energy balance coupled model for C3 leaves): `energy_balance`, `photosynEB` and `simulate` with `ModelC3MD`.
+- compare the results with plots and statistics.
 
-# ╔═╡ c7c46d56-8d7f-11ec-33ce-37f550d58adc
+!!! warning
+	This notebook does not perform the benchmark by default for the obvious reason that it takes forever to run. Instead, it shows the outputs of [a similar script in this repository](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/PlantBiophysics_performance_noPluto.jl) that is run from the command line to avoid the overhead from Pluto. You can still do the benchmark by setting the `update` object below to `true`.
 """
-begin
-	using Statistics
-	using LaTeXStrings
-	using Revise
-	using Cropbox
-	using LeafGasExchange
-	using RCall
-	using DataFrames
-	using Plots
-	using CSV
-end
-"""
+
+# ╔═╡ 2878d40a-942d-4f62-8217-edecafe1c898
+update = false
 
 # ╔═╡ 9c3f432b-4d1f-4765-9989-17e983cee5f7
-md" Main parameters:"
+md""" 
+
+## Parameters
+
+### Benchmark parameters
+
+You'll find below the main parameters of the benchmark. In few words, each package runs a simulation for `N` different time-steps `microbenchmark_steps` times repeated `microbenchmark_evals` times. We make `N` different simulations because the simulation duration can vary depending on the inputs due to iterative computations in the code, *i.e.* different initial conditions can make the algorithms converge more or less rapidly.
+"""
 
 # ╔═╡ e7e23262-1813-4fe5-80fb-2be20cb54f89
 begin
-	# Parameters : 
-	N    = 10000        # Length of the random imput set
-	g0   = 0.03       # Medlyn stomatal conductance parameter
-	g1   = 12.        # Medlyn stomatal conductance parameter
-	PPFD = 1500.      # Absorbed Photosynthetic Photon Flux Density (μmol m-2 s-1)
-	TPU  = 6.         # Triose phosphate utilization-limited photosynthesis rate
-	
-	@rput PPFD
-	@rput g0
-	@rput g1
-	@rput TPU
+	Random.seed!(1) # Set random seed
+	microbenchmark_steps = 100 # Number of times the microbenchmark is run
+	microbenchmark_evals = 1 # N. times each sample is run to be sure of the output
+	N = 100 # Number of timesteps simulated for each microbenchmark step
 end
 
 # ╔═╡ 65d00bf6-8f9a-40b4-947a-fd46ddc89753
-md"## 1. Creation of random input dataset
-We first create the ranges of input parameters:
-- T for air temperature ($°C$)
-- Wind for wind speed ($m.s^{-1}$)
-- P for ambient pressure ($kPa$)
-- Rh for relative humidity (between 0 and 1)
-- Ca for air carbon concentration ($ppm$)
-- JMaxRef for potential rate of electron transport ($\mu mol_{[CO2].m^{-2}.s^{-1}}$)
-- VcMaxRef for maximum rate of Rubisco activity ($\mu mol_{[CO2].m^{-2}.s^{-1}}$)
-- RdRef for mitochondrial respiration in the light at reference temperature ($\mu mol_{[CO2].m^{-2}.s^{-1}}$)
-- Rs for short-wave net radiation ($W.m^{-1}$)
-- sky_fraction for Sun-visible fraction of the leaf (between 0 and 1)
-- d for characteristic length ($m$)
-"
+md"""
+
+### Random input simulation dataset
+
+We create possible ranges for input parameters. These ranges where chosen so all of the three packages don't return errors during computation (plantecophys has issues with low temperatures).
+
+- Ta: air temperature ($°C$)
+- Wind: wind speed ($m.s^{-1}$)
+- P: ambient pressure ($kPa$)
+- Rh: relative humidity (between 0 and 1)
+- Ca: air CO₂ concentration ($ppm$)
+- Jmax: potential rate of electron transport ($\mu mol_{CO2}.m^{-2}.s^{-1}$)
+- Vmax: maximum rate of Rubisco activity ($\mu mol_{CO2}.m^{-2}.s^{-1}$)
+- Rd: mitochondrial respiration in the light at reference temperature ($\mu mol_{CO2}.m^{-2}.s^{-1}$)
+- TPU: triose phosphate utilization-limited photosynthesis rate ($\mu mol_{CO2}.m^{-2}.s^{-1}$)
+- Rs: short-wave net radiation ($W.m^{-1}$)
+- skyF: Sun-visible fraction of the leaf (between 0 and 1)
+- d: characteristic length ($m$)
+- g0: residual stomatal conductance ($mol_{CO2}.m^{-2}.s^{-1}$)
+- g1: slope of the stomatal conductance relationship.
+"""
 
 # ╔═╡ acc685f9-7ae8-483d-982e-ff45ccd9e860
 begin
-    Rn   = range(0,500,length=100000)
-    Ta   = range(-10,50,length=100000)
-    Wind = range(0,20,length=100000)
-    P    = range(90,101,length=100000)
-    Rh   = range(0.1,1.,length=100000)
-    Ca   = range(360,900,length=100000)
-    skyF = range(0.,1.,length=100000)
-    d    = range(0.001,0.5,length=100000)
-    Jmax = range(200.,300.,length=100000)
-    Vmax = range(150.,250.,length=100000)
-    Rd   = range(0.3,2.,length=100000)
-    vars = hcat([Ta,Wind,P,Rh,Ca,Jmax,Vmax,Rd,Rn,skyF,d])
-	print("Ranges defined.")
+	# Create the ranges of input parameters
+	length_range = 10000
+	Rs = range(10, 500, length=length_range)
+	Ta = range(18, 40, length=length_range)
+	Wind = range(0.5, 20, length=length_range)
+	P = range(90, 101, length=length_range)
+	Rh = range(0.1, 0.98, length=length_range)
+	Ca = range(360, 900, length=length_range)
+	skyF = range(0.0, 1.0, length=length_range)
+	d = range(0.001, 0.5, length=length_range)
+	Jmax = range(200.0, 300.0, length=length_range)
+	Vmax = range(150.0, 250.0, length=length_range)
+	Rd = range(0.3, 2.0, length=length_range)
+	TPU = range(5.0, 20.0, length=length_range)
+	g0 = range(0.001, 2.0, length=length_range)
+	g1 = range(0.5, 15.0, length=length_range)
+	vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
+	nothing
 end
 
 # ╔═╡ b8126c39-8c6c-490d-9992-8922e88f8857
-md"Then create the randomly drawn input set."
+md"We then sample `N` conditions from the given ranges:"
 
 # ╔═╡ a0476d0d-64d9-4457-b78d-41519e38e859
 begin
-	set   = [rand.(vars) for i in 1:N]
-	set   = reshape(vcat(set...),(length(set[1]),length(set)))'
-	name = ["T","Wind","P","Rh","Ca","JMaxRef","VcMaxRef","RdRef","Rs","sky_fraction","d"]
-	set   = DataFrame(set,name)
+	set = [rand.(vars) for i in 1:N]
+	set = reshape(vcat(set...), (length(set[1]), length(set)))'
+	name = ["T", "Wind", "P", "Rh", "Ca", "JMaxRef", "VcMaxRef", "RdRef", "Rs", "sky_fraction", "d", "TPURef", "g0", "g1"]
+	set = DataFrame(set, name)
+	@. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
+	@. set[!, :PPFD] = set.Rs * 0.48 * 4.57
+	set
 end
 
 # ╔═╡ ae00e44e-d864-4d04-b2e8-fac510ce44bb
@@ -112,136 +119,134 @@ md"
 
 # ╔═╡ 8419c830-8e35-493b-91b2-adfc97e30a61
 md"
-##### R package _plantecophys_
+##### plantecophys
+
+Preparing R to make the benchmark:
 "
+
+# ╔═╡ ae4f7b8f-085e-4997-ae0c-4e3f38d1cee4
+begin
+	if update
+		R"""
+			if(!require("plantecophys")){
+				install.packages("plantecophys", repos = "https://cloud.r-project.org")
+			}
+			if(!require("microbenchmark")){
+				install.packages("microbenchmark", repos = "https://cloud.r-project.org")
+			}
+		"""
+	
+		# Make variables available to the R session
+		@rput set N microbenchmark_steps
+	end
+end
+
+# ╔═╡ 6c94e587-bcd4-42f0-b897-322feeea6986
+md"""
+Making the benchmark:
+"""
 
 # ╔═╡ 39952139-05b6-4794-bfea-482ffb5107e9
 begin
-	R"""
-	library(plantecophys)
-	library(dplyr)
-	library(readr)
-	library(microbenchmark)
-	time_PE = c()
-	"""
-	
-    for i in 1:N
-        VPD = 0.61375 * exp((17.502 * 25.) / (25. + 240.97)) - set.Rh[i] * 0.61375 * exp((17.502 * set.T[i]) / (set.T[i] + 240.97))
-        @rput VPD
-        
-        df=DataFrame(set[i,:])
-        @rput df
+	if update
 		R"""
-		function_EB <- function(df,VPD) {
-		res = PhotosynEB(Tair = df$T, VPD = VPD,Wind = df$Wind,
-						Wleaf = df$d,Ca = df$Ca,  StomatalRatio = 1,
-						LeafAbs = df$sky_fraction,gsmodel = "BBOpti",g0 = g0, g1 = g1,
-						alpha = 0.24,theta = 0.7, Jmax = df$JMaxRef, 
-						Vcmax = df$VcMaxRef, TPU = TPU,Rd = df$RdRef,
-						RH = df$Rh*100,PPFD=PPFD,
-						Patm = df$P)
-			return(res)
+		# Define the function call in a function that takes a list as input to limit DataFrame overhead
+		function_EB <- function(input) {
+		    PhotosynEB(
+		        Tair = input$Tair, VPD = input$VPD, Wind = input$Wind,
+		        Wleaf = input$Wleaf,Ca = input$Ca,  StomatalRatio = 1,
+		        LeafAbs = input$LeafAbs, gsmodel = "BBOpti", g0 = input$g0, g1 = input$g1,
+		        alpha = 0.24, theta = 0.7, Jmax = input$Jmax,
+		        Vcmax = input$Vcmax, TPU = input$TPU, Rd = input$Rd,
+		        RH = input$RH, PPFD=input$PPFD, Patm = input$Patm
+		    )
+		}
+		
+		time_PE = c()
+		for(i in seq_len(N)){
+		    # Put the inputs into a vector to limit dataframe overhead:
+		    input = list(
+		        Tair = set$T[i], VPD = set$vpd[i], Wind = set$Wind[i], Wleaf = set$d[i],
+		        Ca = set$Ca[i], LeafAbs = set$sky_fraction[i], g0 = set$g0[i], g1 = set$g1[i],
+		        Jmax = set$JMaxRef[i], Vcmax = set$VcMaxRef[i], TPU = set$TPURef[i],
+		        Rd = set$RdRef[i], RH = set$Rh[i]*100, PPFD=set$PPFD[i],Patm = set$P[i]
+		    )
+		
+		    m = microbenchmark(function_EB(input), times = microbenchmark_steps)
+		
+		    time_PE = append(time_PE,m$time * 10e-9) # transform in seconds
 		}
 		"""
-		
-        R"""
-        resBenchmark <- microbenchmark(function_EB(df,VPD), times=1)
-        time_PE = append(time_PE,resBenchmark$time)
-        """
-		print(i)
-    end
-    @rget time_PE 
-	time_PE .*= 10e-9
+
+		@rget time_PE
+	end
 end
 
-# ╔═╡ b4a74b07-46f7-4fa7-b925-03d4edcdc83b
-md"As `microbenchmark` output is in nanoseconds ($10^{-9}$ s), note that we convert `time_PE` in seconds.
-	"
-
 # ╔═╡ 4dad9b75-3a03-4da1-9aa8-fea02fb48a97
-md"##### Julia package _LeafGasExchange.jl_ (within _Cropbox.jl_ framework)
+md"
 
-We benchmark the `LeafGasExchange.jl`package with `nounit` flag. According to the `LeafGasExchange.jl` documentation, it allows to make calculations without units (_i.e._ the results are now pure floats and no '1 m/s' like). Then we can compare the package in the same framework."
+##### LeafGasExchange.jl
+
+Note that we benchmark `LeafGasExchange.jl` with the `nounit` flag to make a faire comparison with `PlantBiophysics.jl` in case computing units takes time (it shouldn't much)."
 
 # ╔═╡ 2b08f21b-7c9a-43a0-9d42-dd613f7335f6
 begin
-    time_LG = []
-    for i in 1:N
-        config = :Weather => (
-            PFD = PPFD,
-            CO2 = set.Ca[i],
-            RH = set.Rh[i] * 100,
-            T_air = set.T[i],
-            wind = set.Wind[i],
-            P_air = set.P[i],
-            g0 = g0,
-            g1 = g1,
-            Vcmax = set.VcMaxRef[i],
-            Jmax = set.JMaxRef[i],
-            Rd = set.RdRef[i],
-			TPU = TPU
-        )
-        function LGtest()
-            simulate(ModelC3MD;config=(config),nounit=true)
-        end
-        resLG = @elapsed LGtest()
-        push!(time_LG,resLG)
-    end
-	time_LG
+	if update
+		time_LG = []
+		n_lg = fill(0, N)
+		for i in 1:N
+		    config = :Weather => (
+		        PFD=set.PPFD[i],
+		        CO2=set.Ca[i],
+		        RH=set.Rh[i] * 100,
+		        T_air=set.T[i],
+		        wind=set.Wind[i],
+		        P_air=set.P[i],
+		        g0=set.g0[i],
+		        g1=set.g1[i],
+		        Vcmax=set.VcMaxRef[i],
+		        Jmax=set.JMaxRef[i],
+		        Rd=set.RdRef[i],
+		        TPU=set.TPURef[i]
+		    )
+		    b_LG = @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples = microbenchmark_steps
+		    append!(time_LG, b_LG.times .* 1e-9) # transform in seconds
+		    n_lg[i] = 1
+	end
+	end
 end
 
 # ╔═╡ 60f769b9-bf8c-461c-9739-f31ca43b27b8
-md"##### _PlantBiophysics.jl_
+md"""
+##### PlantBiophysics.jl
 
-Soon."
+Benchmarking `PlantBiophysics.jl`:
+"""
 
 # ╔═╡ f6d13a95-ddfc-415f-9c83-25a1912728e6
 begin
-    time_PB = []
-    for i in 1:N
-        leaf = LeafModels(energy = Monteith(),
-					photosynthesis = Fvcb(VcMaxRef=set.VcMaxRef[i],JMaxRef=set.JMaxRef[i],RdRef=set.RdRef[i],TPURef=TPU),
-					stomatal_conductance = Medlyn(g0, g1),
-					Rₛ = set.Rs[i], sky_fraction =set.sky_fraction[i], 
-					PPFD = PPFD, d = set.d[i])
-		meteo = Atmosphere(T = set.T[i], Wind = set.Wind[i], P = set.P[i], Rh = set.Rh[i],Cₐ= set.Ca[i])
-        function PBtest()
-        	energy_balance!(leaf,meteo)
-        end
-        resPB = @elapsed PBtest()
-        push!(time_PB,resPB)
-    end
-	time_PB
-end
-
-# ╔═╡ 17680fd9-5ceb-439c-b806-6d24ba95a289
-begin
-	function t(i)
+	if update
+		time_PB = []
+		for i in 1:N
+			leaf = LeafModels(
+		        energy=Monteith(),
+		        photosynthesis=
+					Fvcb(
+			            VcMaxRef=set.VcMaxRef[i],
+			            JMaxRef=set.JMaxRef[i],
+			            RdRef=set.RdRef[i],
+			            TPURef=set.TPURef[i]
+					),
+		        stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
+		        Rₛ=set.Rs[i], sky_fraction=set.sky_fraction[i], PPFD=set.PPFD[i], d=set.d[i]
+		    )
+			meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
 		
-		energy_balance!(leaf,meteo)
+		    b_PB = @benchmark energy_balance!($leaf, $meteo) evals = microbenchmark_evals samples = microbenchmark_steps
+		    append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
+		end
 	end
 end
-
-# ╔═╡ 57e7a90a-7b33-4e95-9bf1-c383517d9014
-begin
-	for i in 1:1
-		@elapsed t(1)
-	end
-end
-
-# ╔═╡ 45d2eb87-c026-4c49-a25c-ccfd69cf3ee3
-begin
-	@elapsed t(1)
-	@elapsed t(2)
-	@elapsed t(3)
-	@elapsed t(4)
-end
-
-# ╔═╡ 71df85dc-f5ab-4c18-970e-fe1b3ed356e8
-@elapsed t(10)
-
-# ╔═╡ b2c34b56-c26d-40c0-b0a2-3fae39c0dff1
-t(1)
 
 # ╔═╡ 87cc52dd-9878-422d-a10e-d491db2a04c6
 md"
@@ -255,38 +260,6 @@ md"
 We compute here basic statistics, _i.e._ mean, median, min, max, standard deviation. You can access it using doing `statsPE.min` as for example.
 "
 
-# ╔═╡ 3e27bc15-9d80-424b-b3c9-a0690a9dc849
-begin
-	# Defining a structure to hold basic statistics
-	struct stat_res
-	    mean::AbstractFloat
-	    median::AbstractFloat
-	    stddev::AbstractFloat
-	    min::AbstractFloat
-	    max::AbstractFloat
-	end
-
-	# Function computing the basic statistics
-	function basic_stat(df)
-	    m   = mean(df)
-	    med = median(df)
-	    std = Statistics.std(df)
-	    min = findmin(df)[1]
-	    max = findmax(df)[1]
-    	return stat_res(m,med,std,min,max)
-	end
-	
-	statsPB = basic_stat(time_PB)
-	statsPE = basic_stat(time_PE)
-	statsLG = basic_stat(time_LG)
-end
-
-# ╔═╡ 4ff9955a-c726-475f-88fb-baf069f91c5b
-#begin
-#	factorPE = mean(time_PE ./ time_PB)
-#	factorLG = mean(time_LG ./ time_PB)
-#end
-
 # ╔═╡ 12497dfb-87ff-4978-801a-c78cd118b032
 md"
 ##### Histogram plotting
@@ -297,60 +270,134 @@ md"
 We here display the computational time histogram of each package on the same scale in order to compare them: `PlantBiophysics.jl` (soon), `LeafGasExchange.jl` (a) and `plantecophys`(b). y-axis represents the density (_i.e._ reaching 0.3 means that 30% of the computed times are in this bar). Orange zone represents the interval [mean - standard deviation; mean + standard deviation]. Red dashed line represents the mean. Note that x-axis is logarithmic.
 "
 
-# ╔═╡ 1adfa147-c980-48c7-a84d-03847ffa8e6a
-begin
-	# FIGURE
-	Plots.plot(layout=grid(3,1),xminorgrid=true,legend=:best) # Using `Plots.plot` as `plot` function is defined in Cropbox
-	interval=(0.000001,0.5) # x-axis
+# ╔═╡ b2958ece-3a4c-497e-88e3-afc45d8f3688
+md"""
+# References
+"""
 
-	# Ribbon plots (i.e. plot the standard deviation)
-	Plots.plot!([(statsPB.mean-statsPB.stddev,0.),(statsPB.mean+statsPB.stddev,0.),(statsPB.mean+statsPB.stddev,0.6),(statsPB.mean-statsPB.stddev,0.6),(statsPB.mean-statsPB.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=1,label="[μ-σ, μ+σ]")
-	Plots.plot!([(statsPE.mean-statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.),(statsPE.mean+statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.6),(statsPE.mean-statsPE.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=2,label="")
-	Plots.plot!([(statsLG.mean-statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.),(statsLG.mean+statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.6),(statsLG.mean-statsLG.stddev,0.)],seriestype=:shape,fillcolor=:orange,alpha=0.3,linecolor=:blue,linewidth=0.,sp=3,label="")
+# ╔═╡ 22ec1978-aaee-4fa1-b739-1246a6aeda20
+"""
+	stat_res(
+		mean::AbstractFloat
+    	median::AbstractFloat
+    	stddev::AbstractFloat
+    	min::AbstractFloat
+    	max::AbstractFloat
+	)
 
-	# Histogram densities plots
-	histogram!(time_PB,sp=1,xaxis=(:log10, interval),normalize=:probability,legend=false,bins=200,dpi=300,color=:lightblue,label="o")
-	histogram!(time_PE,sp=2,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
-	histogram!(time_LG[2:end],sp=3,xaxis=(:log10, interval),normalize=:probability,bins=30,dpi=300,color=:lightblue,label="")
-
-	# Mean plotting
-	Plots.plot!(statsPB.mean*[1,1],[0.,0.6],sp=1,linewidth=2,linestyle=:dot,color=:red,label="Mean")
-	Plots.plot!(statsPE.mean*[1,1],[0.,0.6],sp=2,linewidth=2,linestyle=:dot,color=:red,label="")
-	Plots.plot!(statsLG.mean*[1,1],[0.,0.6],sp=3,linewidth=2,linestyle=:dot,color=:red,label="")
-
-	# Annotating (a), (b), (c)
-	annotate!(0.93*interval[2], 0.68, text("(a) PlantBiophysics.jl", :black, :right, 9),sp=1)
-	annotate!(0.93*interval[2], 0.68, text("(b) plantecophys", :black, :right, 9),sp=2)
-	annotate!(0.93*interval[2], 0.68, text("(c) LeafGasExchange.jl", :black, :right, 9),sp=3)
-	xlabel!("time (s)",xguidefontsize=10,sp=3)
+Structure to hold basic statistics of model performance.
+"""
+struct stat_res
+    mean::AbstractFloat
+    median::AbstractFloat
+    stddev::AbstractFloat
+    min::AbstractFloat
+    max::AbstractFloat
 end
 
-# ╔═╡ faf7e45c-3a1b-496e-a087-3ece17da3b10
-statsLG.median
+# ╔═╡ 30a52bf1-ff77-4f9b-a87a-e9dd8ad0c1c4
+"""
+	basic_stat(df)
 
-# ╔═╡ 008df1f9-fbc8-4d36-9b6e-08b974148c3a
-energy_balance!
+Compute basic statistics from the benchmarking
+"""
+function basic_stat(df)
+    m = mean(df)
+    med = median(df)
+    std = Statistics.std(df)
+    min = findmin(df)[1]
+    max = findmax(df)[1]
+    return stat_res(m, med, std, min, max)
+end
+
+# ╔═╡ 3e27bc15-9d80-424b-b3c9-a0690a9dc849
+begin
+	if update
+		statsPB = basic_stat(time_PB)
+		statsPE = basic_stat(time_PE)
+		statsLG = basic_stat(time_LG)
+		
+		factorPE = mean(time_PE) / mean(time_PB)
+		factorLG = mean(time_LG) / mean(time_PB)
+
+		DataFrame("PlantBiophysics" => statsPB, "plantecophys" => statsPE, "LeafGasExchange" => statsLG)
+	else 
+		CSV.read("benchmark.csv", DataFrame)
+	end
+end
+
+# ╔═╡ ac330756-f1ac-431c-9e60-7d346e06aa1f
+function plot_benchmark_Makie(statsPB,statsPE,statsLG)
+    noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
+    fig = Makie.Figure(backgroundcolor = RGBf(1, 1, 1),resolution = (1000, 800),font=noto_sans,dpi=600,size=(1000,1000),xminorgridstyle=true)
+    ep=1e-9
+    interval = (3e-6, 2e-1) # x-axis
+
+    axa = Axis(fig[1,1:3],title="(a) PlantBiophysics.jl",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
+    stddevi = Makie.poly!(axa,Rect(max(ep, statsPB.mean - statsPB.stddev), 0., 2*statsPB.stddev, 0.2),color=(:orange, 0.3))
+    Makie.hist!(axa,time_PB[time_PB.<1e-4], normalization=:probability, bins=300)
+    moy = Makie.lines!(axa,statsPB.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
+    axislegend(axa, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
+        orientation = :vertical,labelsize=13,framevisible = false)
+    Makie.xlims!(axa,interval)
+
+    axb = Axis(fig[2,1:3],title="(b) plantecophys",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
+    stddevi = Makie.poly!(axb,Rect(statsPE.mean - statsPE.stddev, 0., 2*statsPE.stddev, 0.2),color=(:orange, 0.3))
+    Makie.hist!(axb,time_PE[time_PE.<1e-0],normalization=:probability, bins=100)
+    moy = Makie.lines!(axb,statsPE.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
+    #axislegend(axb, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
+    #    orientation = :vertical,labelsize=13,framevisible = false)
+    Makie.xlims!(axb,interval)
+
+    axc = Axis(fig[3,1:3],title="(c) LeafGasExchange.jl",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
+    stddevi = Makie.poly!(axc,Rect(statsLG.mean - statsLG.stddev, 0., 2*statsLG.stddev, 0.2),color=(:orange, 0.3))
+    Makie.hist!(axc,time_LG[time_LG.<1e-1],normalization=:probability, bins=80)
+    moy = Makie.lines!(axc,statsLG.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
+    #axislegend(axb, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
+    #    orientation = :vertical,labelsize=13,framevisible = false)
+    Makie.xlims!(axc,interval)
+
+    Label(fig[1:3, 0], "Density", rotation = pi/2,labelsize=25)
+    Label(fig[4,1:4], "Time (s)")
+
+    fig
+end
+
+# ╔═╡ 1adfa147-c980-48c7-a84d-03847ffa8e6a
+if update 
+	fig = plot_benchmark_Makie(statsPB, statsPE, statsLG)
+	save("benchmark_each_time_steps_new.png", fig, px_per_unit = 2)
+else
+	md"""
+	![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/benchmark_each_time_steps.png?raw=true)
+
+	!!! note 
+		This is the plot from the latest commit on <https://github.com/VEZY/PlantBiophysics-paper/>. If you want to make your own benchmarking, set the `update` object to `true`, but careful, it takes a long time to perform!
+	"""
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Cropbox = "a904b226-abf1-11e9-2713-059ba252a964"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 LeafGasExchange = "eed59905-05f1-464e-afba-94c39a4505fd"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 PlantBiophysics = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
+BenchmarkTools = "~1.3.1"
 CSV = "~0.10.2"
+CairoMakie = "~0.7.5"
 Cropbox = "~0.3.19"
 DataFrames = "~1.3.2"
 LeafGasExchange = "~0.1.0"
 PlantBiophysics = "~0.1.0"
-Plots = "~1.26.0"
 RCall = "~0.13.13"
 """
 
@@ -358,7 +405,7 @@ RCall = "~0.13.13"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.1"
+julia_version = "1.7.2"
 manifest_format = "2.0"
 
 [[deps.AbstractFFTs]]
@@ -377,6 +424,12 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "af92965fb30777147966f58acb05da51c5616b5f"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.3.3"
+
+[[deps.Animations]]
+deps = ["Colors"]
+git-tree-sha1 = "e81c509d2c8e49592413bfb0bb3b08150056c79d"
+uuid = "27a7e980-b3e6-11e9-2bcd-0b925532e340"
+version = "0.4.1"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -402,6 +455,12 @@ git-tree-sha1 = "b25e88db7944f98789130d7b503276bc34bc098e"
 uuid = "bf4720bc-e11a-5d0c-854e-bdca1663c893"
 version = "0.1.0"
 
+[[deps.Automa]]
+deps = ["Printf", "ScanByte", "TranscodingStreams"]
+git-tree-sha1 = "d50976f217489ce799e366d9561d56a98a30d7fe"
+uuid = "67c07d97-cdcb-5c2c-af73-a7f9c32a568b"
+version = "0.8.2"
+
 [[deps.AxisAlgorithms]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
 git-tree-sha1 = "66771c8d21c8ff5e3a93379480a2307ac36863f7"
@@ -415,6 +474,12 @@ version = "0.3.5"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[deps.BenchmarkTools]]
+deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "4c10eee4af024676200bc7752e536f858c6b8f93"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.3.1"
 
 [[deps.BinaryProvider]]
 deps = ["Libdl", "Logging", "SHA"]
@@ -433,6 +498,11 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.8+0"
+
+[[deps.CEnum]]
+git-tree-sha1 = "eb4cb44a499229b3b8426dcfb5dd85333951ff90"
+uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+version = "0.4.2"
 
 [[deps.CPUTime]]
 git-tree-sha1 = "2dcc50ea6a0a1ef6440d6eecd0fe3813e5671f45"
@@ -456,6 +526,12 @@ deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
 git-tree-sha1 = "d0b3f8b4ad16cb0a2988c6788646a5e6a17b6b1b"
 uuid = "159f3aea-2a34-519c-b102-8c37f9878175"
 version = "1.0.5"
+
+[[deps.CairoMakie]]
+deps = ["Base64", "Cairo", "Colors", "FFTW", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "SHA", "StaticArrays"]
+git-tree-sha1 = "4a0de4f5aa2d5d27a1efa293aeabb1a081e46b2b"
+uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+version = "0.7.5"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -492,6 +568,12 @@ deps = ["TranscodingStreams", "Zlib_jll"]
 git-tree-sha1 = "ded953804d019afa9a3f98981d99b33e3db7b6da"
 uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
 version = "0.7.0"
+
+[[deps.ColorBrewer]]
+deps = ["Colors", "JSON", "Test"]
+git-tree-sha1 = "61c5334f33d91e570e1d0c3eb5465835242582c4"
+uuid = "a2cac450-b92f-5266-8821-25eda20663c8"
+version = "0.4.0"
 
 [[deps.ColorSchemes]]
 deps = ["ColorTypes", "Colors", "FixedPointNumbers", "Random"]
@@ -688,6 +770,12 @@ git-tree-sha1 = "3f3a2501fa7236e9b911e0f7a588c657e822bb6d"
 uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.3+0"
 
+[[deps.EllipsisNotation]]
+deps = ["ArrayInterface"]
+git-tree-sha1 = "d064b0340db45d48893e7604ec95e7a2dc9da904"
+uuid = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
+version = "1.5.0"
+
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "ae13fcbc7ab8f16b0856729b050ef0c446aa3492"
@@ -780,11 +868,23 @@ git-tree-sha1 = "1bd6fc0c344fc0cbee1f42f8d2e7ec8253dda2d2"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
 version = "0.10.25"
 
+[[deps.FreeType]]
+deps = ["CEnum", "FreeType2_jll"]
+git-tree-sha1 = "cabd77ab6a6fdff49bfd24af2ebe76e6e018a2b4"
+uuid = "b38be410-82b0-50bf-ab77-7b57e271db43"
+version = "4.0.0"
+
 [[deps.FreeType2_jll]]
 deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
 git-tree-sha1 = "87eb71354d8ec1a96d4a7636bd57a7347dde3ef9"
 uuid = "d7e528f0-a631-5988-bf34-fe36492bcfd7"
 version = "2.10.4+0"
+
+[[deps.FreeTypeAbstraction]]
+deps = ["ColorVectorSpace", "Colors", "FreeType", "GeometryBasics"]
+git-tree-sha1 = "b5c7fe9cea653443736d264b85466bad8c574f4a"
+uuid = "663a7486-cb36-511b-a19d-713bb74d65c9"
+version = "0.9.9"
 
 [[deps.FriBidi_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -801,24 +901,6 @@ version = "0.5.0"
 [[deps.Future]]
 deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
-
-[[deps.GLFW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pkg", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll"]
-git-tree-sha1 = "51d2dfe8e590fbd74e7a842cf6d13d8a2f45dc01"
-uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
-version = "3.3.6+0"
-
-[[deps.GR]]
-deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Printf", "Random", "RelocatableFolders", "Serialization", "Sockets", "Test", "UUIDs"]
-git-tree-sha1 = "9f836fb62492f4b0f0d3b06f55983f2704ed0883"
-uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.64.0"
-
-[[deps.GR_jll]]
-deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Pkg", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "a6c850d77ad5118ad3be4bd188919ce97fffac47"
-uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.64.0+0"
 
 [[deps.Gadfly]]
 deps = ["Base64", "CategoricalArrays", "Colors", "Compose", "Contour", "CoupledFields", "DataAPI", "DataStructures", "Dates", "Distributions", "DocStringExtensions", "Hexagons", "IndirectArrays", "IterTools", "JSON", "Juno", "KernelDensity", "LinearAlgebra", "Loess", "Measures", "Printf", "REPL", "Random", "Requires", "Showoff", "Statistics"]
@@ -868,6 +950,12 @@ git-tree-sha1 = "57c021de207e234108a6f1454003120a1bf350c4"
 uuid = "86223c79-3864-5bf0-83f7-82e725a168b6"
 version = "1.6.0"
 
+[[deps.GridLayoutBase]]
+deps = ["GeometryBasics", "InteractiveUtils", "Observables"]
+git-tree-sha1 = "169c3dc5acae08835a573a8a3e25c62f689f8b5c"
+uuid = "3955a311-db13-416c-9275-1d80ed98e5e9"
+version = "0.6.5"
+
 [[deps.Grisu]]
 git-tree-sha1 = "53bb909d1151e57e2484c3d1b53e19552b887fb2"
 uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
@@ -914,6 +1002,12 @@ git-tree-sha1 = "9a5c62f231e5bba35695a20988fc7cd6de7eeb5a"
 uuid = "a09fc81d-aa75-5fe9-8630-4744c3626534"
 version = "0.9.3"
 
+[[deps.ImageIO]]
+deps = ["FileIO", "IndirectArrays", "JpegTurbo", "Netpbm", "OpenEXR", "PNGFiles", "QOI", "Sixel", "TiffImages", "UUIDs"]
+git-tree-sha1 = "539682309e12265fbe75de8d83560c307af975bd"
+uuid = "82e4d734-157c-48bb-816b-45c225c6df19"
+version = "0.6.2"
+
 [[deps.ImageMagick]]
 deps = ["FileIO", "ImageCore", "ImageMagick_jll", "InteractiveUtils", "Libdl", "Pkg", "Random"]
 git-tree-sha1 = "5bc1cb62e0c5f1005868358db0692c994c3a13c6"
@@ -925,6 +1019,12 @@ deps = ["Artifacts", "Ghostscript_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl",
 git-tree-sha1 = "f025b79883f361fa1bd80ad132773161d231fd9f"
 uuid = "c73af94c-d91f-53ed-93a7-00f77d67a9d7"
 version = "6.9.12+2"
+
+[[deps.Imath_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "87f7662e03a649cffa2e05bf19c303e168732d3e"
+uuid = "905a6f67-0a94-5f89-b386-d35d92009cd1"
+version = "3.1.2+0"
 
 [[deps.Impute]]
 deps = ["BSON", "CSV", "DataDeps", "Distances", "IterTools", "LinearAlgebra", "Missings", "NamedDims", "NearestNeighbors", "Random", "Statistics", "StatsBase", "TableOperations", "Tables"]
@@ -986,6 +1086,12 @@ git-tree-sha1 = "b15fc0a95c564ca2e0a7ae12c1f095ca848ceb31"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 version = "0.13.5"
 
+[[deps.IntervalSets]]
+deps = ["Dates", "EllipsisNotation", "Statistics"]
+git-tree-sha1 = "bcf640979ee55b652f3b01650444eb7bbe3ea837"
+uuid = "8197267c-284f-5f27-9208-e0e47529a953"
+version = "0.5.4"
+
 [[deps.InverseFunctions]]
 deps = ["Test"]
 git-tree-sha1 = "a7254c0acd8e62f1ac75ad24d5db43f5f19f3c65"
@@ -1000,6 +1106,12 @@ version = "1.1.0"
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "7fd44fd4ff43fc60815f8e764c0f352b83c49151"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
+version = "0.1.1"
+
+[[deps.Isoband]]
+deps = ["isoband_jll"]
+git-tree-sha1 = "f9b6d97355599074dc867318950adaa6f9946137"
+uuid = "f1662d9f-8043-43de-a69a-05efc1cc6ff4"
 version = "0.1.1"
 
 [[deps.IterTools]]
@@ -1035,6 +1147,12 @@ deps = ["Dates", "Mmap", "Parsers", "Unicode"]
 git-tree-sha1 = "3c837543ddb02250ef42f4738347454f95079d4e"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.3"
+
+[[deps.JpegTurbo]]
+deps = ["CEnum", "FileIO", "ImageCore", "JpegTurbo_jll", "TOML"]
+git-tree-sha1 = "a77b273f1ddec645d1b7c4fd5fb98c8f90ad10a5"
+uuid = "b835a17e-a41a-41e7-81f0-2f016b05efe0"
+version = "0.1.1"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1130,12 +1248,6 @@ git-tree-sha1 = "64613c82a59c120435c067c2b809fc61cf5166ae"
 uuid = "d4300ac3-e22c-5743-9152-c294e39db1e4"
 version = "1.8.7+0"
 
-[[deps.Libglvnd_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll", "Xorg_libXext_jll"]
-git-tree-sha1 = "7739f837d6447403596a75d19ed01fd08d6f56bf"
-uuid = "7e76a0d4-f3c7-5321-8279-8d96eeed0f29"
-version = "1.3.0+3"
-
 [[deps.Libgpg_error_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "c333716e46366857753e273ce6a69ee0945a6db9"
@@ -1209,6 +1321,18 @@ git-tree-sha1 = "3d3e902b31198a27340d0bf00d6ac452866021cf"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.9"
 
+[[deps.Makie]]
+deps = ["Animations", "Base64", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "Contour", "Distributions", "DocStringExtensions", "FFMPEG", "FileIO", "FixedPointNumbers", "Formatting", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageIO", "IntervalSets", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MakieCore", "Markdown", "Match", "MathTeXEngine", "Observables", "OffsetArrays", "Packing", "PlotUtils", "PolygonOps", "Printf", "Random", "RelocatableFolders", "Serialization", "Showoff", "SignedDistanceFields", "SparseArrays", "StaticArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "UnicodeFun"]
+git-tree-sha1 = "63de3b8a5c1f764e4e3a036c7752a632b4f0b8d1"
+uuid = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+version = "0.16.6"
+
+[[deps.MakieCore]]
+deps = ["Observables"]
+git-tree-sha1 = "c5fb1bfac781db766f9e4aef96adc19a729bc9b2"
+uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
+version = "0.2.1"
+
 [[deps.MappedArrays]]
 git-tree-sha1 = "e8b359ef06ec72e8c030463fe02efe5527ee5142"
 uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
@@ -1223,6 +1347,17 @@ version = "0.1.1"
 [[deps.Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
+
+[[deps.Match]]
+git-tree-sha1 = "1d9bc5c1a6e7ee24effb93f175c9342f9154d97f"
+uuid = "7eb4fadd-790c-5f42-8a69-bfa0b872bfbf"
+version = "1.2.0"
+
+[[deps.MathTeXEngine]]
+deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "Test"]
+git-tree-sha1 = "70e733037bbf02d691e78f95171a1fa08cdc6332"
+uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
+version = "0.2.1"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "Random", "Sockets"]
@@ -1309,6 +1444,12 @@ git-tree-sha1 = "16baacfdc8758bc374882566c9187e785e85c2f0"
 uuid = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 version = "0.4.9"
 
+[[deps.Netpbm]]
+deps = ["FileIO", "ImageCore"]
+git-tree-sha1 = "18efc06f6ec36a8b801b23f076e3c6ac7c3bf153"
+uuid = "f09324ee-3d7c-5217-9330-fc30815ba969"
+version = "1.0.2"
+
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 
@@ -1333,15 +1474,27 @@ version = "1.3.5+1"
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 
+[[deps.OpenEXR]]
+deps = ["Colors", "FileIO", "OpenEXR_jll"]
+git-tree-sha1 = "327f53360fdb54df7ecd01e96ef1983536d1e633"
+uuid = "52e1d378-f018-4a11-a4be-720524705ac7"
+version = "0.3.2"
+
+[[deps.OpenEXR_jll]]
+deps = ["Artifacts", "Imath_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
+git-tree-sha1 = "923319661e9a22712f24596ce81c54fc0366f304"
+uuid = "18a262bb-aa17-5467-a713-aee519bc75cb"
+version = "3.1.1+0"
+
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "648107615c15d4e09f7eca16307bc821c1f718d8"
+git-tree-sha1 = "ab05aa4cc89736e95915b01e7279e61b1bfe33b8"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "1.1.13+0"
+version = "1.1.14+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -1378,6 +1531,18 @@ git-tree-sha1 = "7e2166042d1698b6072352c74cfd1fca2a968253"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
 version = "0.11.6"
 
+[[deps.PNGFiles]]
+deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
+git-tree-sha1 = "e925a64b8585aa9f4e3047b8d2cdc3f0e79fd4e4"
+uuid = "f57f5aa1-a3ce-4bc8-8ab9-96f992907883"
+version = "0.3.16"
+
+[[deps.Packing]]
+deps = ["GeometryBasics"]
+git-tree-sha1 = "1155f6f937fa2b94104162f01fa400e192e4272f"
+uuid = "19eb6ba3-879d-56ad-ad62-d5c202156566"
+version = "0.4.2"
+
 [[deps.PaddedViews]]
 deps = ["OffsetArrays"]
 git-tree-sha1 = "03a7a85b76381a3d04c7a1656039197e70eda03d"
@@ -1412,29 +1577,28 @@ version = "0.40.1+0"
 deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
+[[deps.PkgVersion]]
+deps = ["Pkg"]
+git-tree-sha1 = "a7a7e1a88853564e551e4eba8650f8c38df79b37"
+uuid = "eebad327-c553-4316-9ea0-9fa01ccd7688"
+version = "0.1.1"
+
 [[deps.PlantBiophysics]]
 deps = ["CSV", "DataFrames", "Dates", "Impute", "LsqFit", "MultiScaleTreeGraph", "MutableNamedTuples", "OrderedCollections", "RecipesBase", "Statistics", "Test", "YAML"]
 git-tree-sha1 = "d855ea7a02889607e8291c64187d99f741241973"
 uuid = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
 version = "0.1.0"
 
-[[deps.PlotThemes]]
-deps = ["PlotUtils", "Requires", "Statistics"]
-git-tree-sha1 = "a3a964ce9dc7898193536002a6dd892b1b5a6f1d"
-uuid = "ccf2f8ad-2431-5c83-bf29-c5338b663b6a"
-version = "2.0.1"
-
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "6f1b25e8ea06279b5689263cc538f51331d7ca17"
+git-tree-sha1 = "bb16469fd5224100e422f0b027d26c5a25de1200"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.1.3"
+version = "1.2.0"
 
-[[deps.Plots]]
-deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "23d109aad5d225e945c813c6ebef79104beda955"
-uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.26.0"
+[[deps.PolygonOps]]
+git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
+uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
+version = "0.1.2"
 
 [[deps.PolynomialRoots]]
 git-tree-sha1 = "5f807b5345093487f733e520a1b7395ee9324825"
@@ -1479,11 +1643,11 @@ git-tree-sha1 = "1fc929f47d7c151c839c5fc1375929766fb8edcc"
 uuid = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 version = "1.93.1"
 
-[[deps.Qt5Base_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
-git-tree-sha1 = "ad368663a5e20dbb8d6dc2fddeefe4dae0781ae8"
-uuid = "ea2cea3b-5b76-57ae-a6ef-0a8af62496e1"
-version = "5.15.3+0"
+[[deps.QOI]]
+deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
+git-tree-sha1 = "18e8f4d1426e965c7b532ddd260599e1510d26ce"
+uuid = "4b34888f-f399-49d4-9bb3-47ed5cae4e65"
+version = "1.0.0"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
@@ -1516,12 +1680,6 @@ git-tree-sha1 = "6bf3f380ff52ce0832ddd3a2a7b9538ed1bcca7d"
 uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 version = "1.2.1"
 
-[[deps.RecipesPipeline]]
-deps = ["Dates", "NaNMath", "PlotUtils", "RecipesBase"]
-git-tree-sha1 = "995a812c6f7edea7527bb570f0ac39d0fb15663c"
-uuid = "01d81517-befc-4cb6-b9ec-a95719d0359c"
-version = "0.5.1"
-
 [[deps.Reexport]]
 git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
@@ -1553,6 +1711,17 @@ version = "0.3.0+0"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+
+[[deps.SIMD]]
+git-tree-sha1 = "7dbc15af7ed5f751a82bf3ed37757adf76c32402"
+uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
+version = "3.4.1"
+
+[[deps.ScanByte]]
+deps = ["Libdl", "SIMD"]
+git-tree-sha1 = "9cc2955f2a254b18be655a4ee70bc4031b2b189e"
+uuid = "7b38b023-a4d7-4c5e-8d43-3f3097f304eb"
+version = "0.3.0"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -1590,11 +1759,23 @@ git-tree-sha1 = "91eddf657aca81df9ae6ceb20b959ae5653ad1de"
 uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
 version = "1.0.3"
 
+[[deps.SignedDistanceFields]]
+deps = ["Random", "Statistics", "Test"]
+git-tree-sha1 = "d263a08ec505853a5ff1c1ebde2070419e3f28e9"
+uuid = "73760f76-fbc4-59ce-8f25-708e95d2df96"
+version = "0.4.0"
+
 [[deps.SimpleTraits]]
 deps = ["InteractiveUtils", "MacroTools"]
 git-tree-sha1 = "5d7e3f4e11935503d3ecaf7186eac40602e7d231"
 uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
 version = "0.9.4"
+
+[[deps.Sixel]]
+deps = ["Dates", "FileIO", "ImageCore", "IndirectArrays", "OffsetArrays", "REPL", "libsixel_jll"]
+git-tree-sha1 = "8fb59825be681d451c246a795117f317ecbcaa28"
+uuid = "45858cf5-a6b0-47a3-bbea-62219f50df47"
+version = "0.1.2"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -1680,9 +1861,9 @@ version = "0.3.5"
 
 [[deps.StructArrays]]
 deps = ["Adapt", "DataAPI", "StaticArrays", "Tables"]
-git-tree-sha1 = "57617b34fa34f91d536eb265df67c2d4519b8b98"
+git-tree-sha1 = "8f705dd141733d79aa2932143af6c6e0b6cea8df"
 uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-version = "0.6.5"
+version = "0.6.6"
 
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
@@ -1729,6 +1910,12 @@ version = "0.1.1"
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[deps.TiffImages]]
+deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
+git-tree-sha1 = "f90022b44b7bf97952756a6b6737d1a0024a3233"
+uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
+version = "0.5.5"
 
 [[deps.TimeZones]]
 deps = ["Dates", "Downloads", "InlineStrings", "LazyArtifacts", "Mocking", "Printf", "RecipesBase", "Serialization", "Unicode"]
@@ -1778,27 +1965,10 @@ git-tree-sha1 = "b649200e887a487468b71821e2644382699f1b0f"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
 version = "1.11.0"
 
-[[deps.Unzip]]
-git-tree-sha1 = "34db80951901073501137bdbc3d5a8e7bbd06670"
-uuid = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
-version = "0.1.2"
-
 [[deps.VersionParsing]]
 git-tree-sha1 = "58d6e80b4ee071f5efd07fda82cb9fbe17200868"
 uuid = "81def892-9a0e-5fdd-b105-ffc91e053289"
 version = "1.3.0"
-
-[[deps.Wayland_jll]]
-deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg", "XML2_jll"]
-git-tree-sha1 = "3e61f0b86f90dacb0bc0e73a0c5a83f6a8636e23"
-uuid = "a2964d1f-97da-50d4-b82a-358c7fce9d89"
-version = "1.19.0+0"
-
-[[deps.Wayland_protocols_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "4528479aa01ee1b3b4cd0e6faef0e04cf16466da"
-uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
-version = "1.25.0+0"
 
 [[deps.WeakRefStrings]]
 deps = ["DataAPI", "InlineStrings", "Parsers"]
@@ -1866,12 +2036,6 @@ git-tree-sha1 = "4e490d5c960c314f33885790ed410ff3a94ce67e"
 uuid = "0c0b7dd1-d40b-584c-a123-a41640f87eec"
 version = "1.0.9+4"
 
-[[deps.Xorg_libXcursor_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libXfixes_jll", "Xorg_libXrender_jll"]
-git-tree-sha1 = "12e0eb3bc634fa2080c1c37fccf56f7c22989afd"
-uuid = "935fb764-8cf2-53bf-bb30-45bb1f8bf724"
-version = "1.2.0+4"
-
 [[deps.Xorg_libXdmcp_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "4fe47bd2247248125c428978740e18a681372dd4"
@@ -1883,30 +2047,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll"]
 git-tree-sha1 = "b7c0aa8c376b31e4852b360222848637f481f8c3"
 uuid = "1082639a-0dae-5f34-9b06-72781eeb8cb3"
 version = "1.3.4+4"
-
-[[deps.Xorg_libXfixes_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll"]
-git-tree-sha1 = "0e0dc7431e7a0587559f9294aeec269471c991a4"
-uuid = "d091e8ba-531a-589c-9de9-94069b037ed8"
-version = "5.0.3+4"
-
-[[deps.Xorg_libXi_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libXext_jll", "Xorg_libXfixes_jll"]
-git-tree-sha1 = "89b52bc2160aadc84d707093930ef0bffa641246"
-uuid = "a51aa0fd-4e3c-5386-b890-e753decda492"
-version = "1.7.10+4"
-
-[[deps.Xorg_libXinerama_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libXext_jll"]
-git-tree-sha1 = "26be8b1c342929259317d8b9f7b53bf2bb73b123"
-uuid = "d1454406-59df-5ea1-beac-c340f2130bc3"
-version = "1.1.4+4"
-
-[[deps.Xorg_libXrandr_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll"]
-git-tree-sha1 = "34cea83cb726fb58f325887bf0612c6b3fb17631"
-uuid = "ec84b674-ba8e-5d96-8ba1-2a689ba10484"
-version = "1.5.2+4"
 
 [[deps.Xorg_libXrender_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll"]
@@ -1925,54 +2065,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "XSLT_jll", "Xorg_libXau_jll
 git-tree-sha1 = "daf17f441228e7a3833846cd048892861cff16d6"
 uuid = "c7cfdc94-dc32-55de-ac96-5a1b8d977c5b"
 version = "1.13.0+3"
-
-[[deps.Xorg_libxkbfile_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll"]
-git-tree-sha1 = "926af861744212db0eb001d9e40b5d16292080b2"
-uuid = "cc61e674-0454-545c-8b26-ed2c68acab7a"
-version = "1.1.0+4"
-
-[[deps.Xorg_xcb_util_image_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_xcb_util_jll"]
-git-tree-sha1 = "0fab0a40349ba1cba2c1da699243396ff8e94b97"
-uuid = "12413925-8142-5f55-bb0e-6d7ca50bb09b"
-version = "0.4.0+1"
-
-[[deps.Xorg_xcb_util_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libxcb_jll"]
-git-tree-sha1 = "e7fd7b2881fa2eaa72717420894d3938177862d1"
-uuid = "2def613f-5ad1-5310-b15b-b15d46f528f5"
-version = "0.4.0+1"
-
-[[deps.Xorg_xcb_util_keysyms_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_xcb_util_jll"]
-git-tree-sha1 = "d1151e2c45a544f32441a567d1690e701ec89b00"
-uuid = "975044d2-76e6-5fbe-bf08-97ce7c6574c7"
-version = "0.4.0+1"
-
-[[deps.Xorg_xcb_util_renderutil_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_xcb_util_jll"]
-git-tree-sha1 = "dfd7a8f38d4613b6a575253b3174dd991ca6183e"
-uuid = "0d47668e-0667-5a69-a72c-f761630bfb7e"
-version = "0.3.9+1"
-
-[[deps.Xorg_xcb_util_wm_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_xcb_util_jll"]
-git-tree-sha1 = "e78d10aab01a4a154142c5006ed44fd9e8e31b67"
-uuid = "c22f9ab0-d5fe-5066-847c-f4bb1cd4e361"
-version = "0.4.1+1"
-
-[[deps.Xorg_xkbcomp_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libxkbfile_jll"]
-git-tree-sha1 = "4bcbf660f6c2e714f87e960a171b119d06ee163b"
-uuid = "35661453-b289-5fab-8a00-3d9160c6a3a4"
-version = "1.4.2+4"
-
-[[deps.Xorg_xkeyboard_config_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_xkbcomp_jll"]
-git-tree-sha1 = "5c8424f8a67c3f2209646d4425f3d415fee5931d"
-uuid = "33bec58e-1273-512f-9401-5d533626f822"
-version = "2.27.0+4"
 
 [[deps.Xorg_xtrans_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2002,6 +2094,12 @@ git-tree-sha1 = "e45044cd873ded54b6a5bac0eb5c971392cf1927"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
 version = "1.5.2+0"
 
+[[deps.isoband_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "51b5eeb3f98367157a7a12a1fb0aa5328946c03c"
+uuid = "9a68df92-36a6-505f-a73e-abb412b6bfb4"
+version = "0.2.3+0"
+
 [[deps.libass_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
 git-tree-sha1 = "5982a94fcba20f02f42ace44b9894ee2b140fe47"
@@ -2023,6 +2121,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
 git-tree-sha1 = "94d180a6d2b5e55e447e2d27a29ed04fe79eb30c"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
 version = "1.6.38+0"
+
+[[deps.libsixel_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "78736dab31ae7a53540a6b752efc61f77b304c5b"
+uuid = "075b6546-f08a-558a-be8f-8157d0f608a5"
+version = "1.8.6+1"
 
 [[deps.libvorbis_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Ogg_jll", "Pkg"]
@@ -2049,45 +2153,36 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "ee567a171cce03570d77ad3a43e90218e38937a9"
 uuid = "dfaa095f-4041-5dcd-9319-2fabd8486b76"
 version = "3.5.0+0"
-
-[[deps.xkbcommon_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Wayland_jll", "Wayland_protocols_jll", "Xorg_libxcb_jll", "Xorg_xkeyboard_config_jll"]
-git-tree-sha1 = "ece2350174195bb31de1a63bea3a41ae1aa593b6"
-uuid = "d8fb68d0-12a3-5cfd-a85a-d49703b185fd"
-version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╟─994a4062-39cf-49b7-b19e-63ff90e9a574
 # ╠═211f1a10-061d-452a-b061-aa5eb5f07428
-# ╠═c7c46d56-8d7f-11ec-33ce-37f550d58adc
+# ╟─994a4062-39cf-49b7-b19e-63ff90e9a574
+# ╠═2878d40a-942d-4f62-8217-edecafe1c898
 # ╟─9c3f432b-4d1f-4765-9989-17e983cee5f7
 # ╠═e7e23262-1813-4fe5-80fb-2be20cb54f89
 # ╟─65d00bf6-8f9a-40b4-947a-fd46ddc89753
 # ╠═acc685f9-7ae8-483d-982e-ff45ccd9e860
 # ╟─b8126c39-8c6c-490d-9992-8922e88f8857
-# ╟─a0476d0d-64d9-4457-b78d-41519e38e859
+# ╠═a0476d0d-64d9-4457-b78d-41519e38e859
 # ╟─ae00e44e-d864-4d04-b2e8-fac510ce44bb
 # ╟─8419c830-8e35-493b-91b2-adfc97e30a61
+# ╠═ae4f7b8f-085e-4997-ae0c-4e3f38d1cee4
+# ╟─6c94e587-bcd4-42f0-b897-322feeea6986
 # ╠═39952139-05b6-4794-bfea-482ffb5107e9
-# ╟─b4a74b07-46f7-4fa7-b925-03d4edcdc83b
 # ╟─4dad9b75-3a03-4da1-9aa8-fea02fb48a97
 # ╠═2b08f21b-7c9a-43a0-9d42-dd613f7335f6
 # ╟─60f769b9-bf8c-461c-9739-f31ca43b27b8
 # ╠═f6d13a95-ddfc-415f-9c83-25a1912728e6
-# ╠═17680fd9-5ceb-439c-b806-6d24ba95a289
-# ╠═57e7a90a-7b33-4e95-9bf1-c383517d9014
-# ╠═45d2eb87-c026-4c49-a25c-ccfd69cf3ee3
-# ╠═71df85dc-f5ab-4c18-970e-fe1b3ed356e8
-# ╠═b2c34b56-c26d-40c0-b0a2-3fae39c0dff1
 # ╟─87cc52dd-9878-422d-a10e-d491db2a04c6
 # ╟─8294a065-5285-4221-8553-e38ca23257f2
 # ╠═3e27bc15-9d80-424b-b3c9-a0690a9dc849
-# ╟─4ff9955a-c726-475f-88fb-baf069f91c5b
 # ╟─12497dfb-87ff-4978-801a-c78cd118b032
 # ╟─84a4b3b4-23d8-4b12-9204-110d3ba4724b
-# ╠═1adfa147-c980-48c7-a84d-03847ffa8e6a
-# ╠═faf7e45c-3a1b-496e-a087-3ece17da3b10
-# ╠═008df1f9-fbc8-4d36-9b6e-08b974148c3a
+# ╟─1adfa147-c980-48c7-a84d-03847ffa8e6a
+# ╟─b2958ece-3a4c-497e-88e3-afc45d8f3688
+# ╟─22ec1978-aaee-4fa1-b739-1246a6aeda20
+# ╟─30a52bf1-ff77-4f9b-a87a-e9dd8ad0c1c4
+# ╠═ac330756-f1ac-431c-9e60-7d346e06aa1f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
