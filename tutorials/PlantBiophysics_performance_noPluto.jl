@@ -1,7 +1,8 @@
-using Random, Statistics, LaTeXStrings, DataFrames, BenchmarkTools, Plots, CSV
-using Cropbox, LeafGasExchange
-using RCall
-using PlantBiophysics
+# To run this script, activate the environment in tutorials:
+# ]activate .
+
+using Random, Statistics, LaTeXStrings, DataFrames, BenchmarkTools, CairoMakie, CSV
+using Cropbox, LeafGasExchange, RCall, PlantBiophysics
 
 # Parameters :
 Random.seed!(1)
@@ -169,95 +170,38 @@ factorLG = mean(time_LG) / mean(time_PB)
 # PLOTTING
 ######################################################################################################
 
-function plot_benchmark(statsPB, statsPE, statsLG)
-    Plots.plot(layout=grid(3, 1), xminorgrid=true) # Using `Plots.plot` as `plot` function is defined in Cropbox
-    interval = (1e-6, 0.0) # x-axis
-    # Ribbon plots (i.e. plot the standard deviation)
-    eps = 1e-9 # limits for PlantBiophysics.jl standard deviation: sometimes the lower limit of the interval is negative and there are problems with logscale
-    Plots.plot!(
-        [
-            (max(eps, statsPB.mean - statsPB.stddev), 0.0),
-            (statsPB.mean + statsPB.stddev, 0.0),
-            (statsPB.mean + statsPB.stddev, 0.9),
-            (max(eps, statsPB.mean - statsPB.stddev), 0.9),
-            (max(eps, statsPB.mean - statsPB.stddev), 0.0)
-        ],
-        seriestype=:shape, fillcolor=:orange, alpha=0.3, linecolor=:blue, linewidth=0.0, sp=1, label="95% confidence interval"
-    )
-    Plots.plot!(
-        [
-            (statsPE.mean - statsPE.stddev, 0.0),
-            (statsPE.mean + statsPE.stddev, 0.0),
-            (statsPE.mean + statsPE.stddev, 1.0),
-            (statsPE.mean - statsPE.stddev, 1.0),
-            (statsPE.mean - statsPE.stddev, 0.0)
-        ],
-        seriestype=:shape, fillcolor=:orange, alpha=0.3, linecolor=:blue, linewidth=0.0, sp=2, label=""
-    )
-    Plots.plot!(
-        [
-            (statsLG.mean - statsLG.stddev, 0.0),
-            (statsLG.mean + statsLG.stddev, 0.0),
-            (statsLG.mean + statsLG.stddev, 1.0),
-            (statsLG.mean - statsLG.stddev, 1.0),
-            (statsLG.mean - statsLG.stddev, 0.0)
-        ],
-        seriestype=:shape, fillcolor=:orange,
-        alpha=0.3, linecolor=:blue, linewidth=0.0, sp=3, label="")
-
-    # Histogram densities plots
-    histogram!(time_PB[time_PB.<1e-4], sp=1, xaxis=(:log10, interval), normalize=:probability, legend=false, bins=100, dpi=300, color=:lightblue, label="")
-    histogram!(time_PE[time_PE.<1e-0], sp=2, xaxis=(:log10, interval), normalize=:probability, bins=30, dpi=300, color=:lightblue, label="")
-    histogram!(time_LG[time_LG.<1e-1], sp=3, xaxis=(:log10, interval), normalize=:probability, bins=30, dpi=300, color=:lightblue, label="")
-
-    # Mean plotting
-    Plots.plot!(statsPB.mean * [1, 1], [0.0, 0.9], sp=1, linewidth=2, linestyle=:dot, color=:red, label="Mean", legend=:topright)
-    Plots.plot!(statsPE.mean * [1, 1], [0.0, 1.0], sp=2, linewidth=2, linestyle=:dot, color=:red, label="")
-    Plots.plot!(statsLG.mean * [1, 1], [0.0, 1.0], sp=3, linewidth=2, linestyle=:dot, color=:red, label="")
-
-    # Annotating (a), (b), (c)
-    annotate!(1.5e-6, 1.0, Plots.text("(a) PlantBiophysics.jl", :black, :left, 9), sp=1)
-    annotate!(1.5e-6, 1.0, Plots.text("(b) plantecophys", :black, :left, 9), sp=2)
-    annotate!(1.5e-6, 1.0, Plots.text("(c) LeafGasExchange.jl", :black, :left, 9), sp=3)
-    Plots.xlabel!("time (s)", xguidefontsize=10, sp=3)
-    Plots.ylabel!("density", xguidefontsize=10, sp=2)
-    Plots.xticks!([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1])
-    Plots.ylims!(0.0, 1.0)
-end
-
-
-function plot_benchmark_Makie(statsPB,statsPE,statsLG)
+function plot_benchmark_Makie(statsPB, statsPE, statsLG)
     noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
-    fig = Makie.Figure(backgroundcolor = RGBf(1, 1, 1),resolution = (1000, 800),font=noto_sans,dpi=600,size=(1000,1000),xminorgridstyle=true)
-    ep=1e-9
+    fig = Makie.Figure(backgroundcolor=RGBf(1, 1, 1), resolution=(1000, 800), font=noto_sans, dpi=600, size=(1000, 1000), xminorgridstyle=true)
+    ep = 1e-9
     interval = (3e-6, 2e-1) # x-axis
 
-    axa = Axis(fig[1,1:3],title="(a) PlantBiophysics.jl",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
-    stddevi = Makie.poly!(axa,Rect(max(ep, statsPB.mean - statsPB.stddev), 0., 2*statsPB.stddev, 0.2),color=(:orange, 0.3))
-    Makie.hist!(axa,time_PB[time_PB.<1e-4], normalization=:probability, bins=300)
-    moy = Makie.lines!(axa,statsPB.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
-    axislegend(axa, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
-        orientation = :vertical,labelsize=13,framevisible = false)
-    Makie.xlims!(axa,interval)
+    axa = Axis(fig[1, 1:3], title="(a) PlantBiophysics.jl", yminorticks=IntervalsBetween(10), xscale=log10, xminorticks=IntervalsBetween(10), yminorgridvisible=true, yminorticksvisible=true, xminorgridvisible=true, xminorticksvisible=true)
+    stddevi = Makie.poly!(axa, Rect(max(ep, statsPB.mean - statsPB.stddev), 0.0, 2 * statsPB.stddev, 0.2), color=(:orange, 0.3))
+    Makie.hist!(axa, time_PB[time_PB.<1e-4], normalization=:probability, bins=300)
+    moy = Makie.lines!(axa, statsPB.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
+    axislegend(axa, [stddevi, moy], ["95% confidence interval", "Mean"], "", position=:rb,
+        orientation=:vertical, labelsize=13, framevisible=false)
+    Makie.xlims!(axa, interval)
 
-    axb = Axis(fig[2,1:3],title="(b) plantecophys",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
-    stddevi = Makie.poly!(axb,Rect(statsPE.mean - statsPE.stddev, 0., 2*statsPE.stddev, 0.2),color=(:orange, 0.3))
-    Makie.hist!(axb,time_PE[time_PE.<1e-0],normalization=:probability, bins=100)
-    moy = Makie.lines!(axb,statsPE.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
+    axb = Axis(fig[2, 1:3], title="(b) plantecophys", yminorticks=IntervalsBetween(10), xscale=log10, xminorticks=IntervalsBetween(10), yminorgridvisible=true, yminorticksvisible=true, xminorgridvisible=true, xminorticksvisible=true)
+    stddevi = Makie.poly!(axb, Rect(statsPE.mean - statsPE.stddev, 0.0, 2 * statsPE.stddev, 0.2), color=(:orange, 0.3))
+    Makie.hist!(axb, time_PE[time_PE.<1e-0], normalization=:probability, bins=100)
+    moy = Makie.lines!(axb, statsPE.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
     #axislegend(axb, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
     #    orientation = :vertical,labelsize=13,framevisible = false)
-    Makie.xlims!(axb,interval)
+    Makie.xlims!(axb, interval)
 
-    axc = Axis(fig[3,1:3],title="(c) LeafGasExchange.jl",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
-    stddevi = Makie.poly!(axc,Rect(statsLG.mean - statsLG.stddev, 0., 2*statsLG.stddev, 0.2),color=(:orange, 0.3))
-    Makie.hist!(axc,time_LG[time_LG.<1e-1],normalization=:probability, bins=80)
-    moy = Makie.lines!(axc,statsLG.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
+    axc = Axis(fig[3, 1:3], title="(c) LeafGasExchange.jl", yminorticks=IntervalsBetween(10), xscale=log10, xminorticks=IntervalsBetween(10), yminorgridvisible=true, yminorticksvisible=true, xminorgridvisible=true, xminorticksvisible=true)
+    stddevi = Makie.poly!(axc, Rect(statsLG.mean - statsLG.stddev, 0.0, 2 * statsLG.stddev, 0.2), color=(:orange, 0.3))
+    Makie.hist!(axc, time_LG[time_LG.<1e-1], normalization=:probability, bins=80)
+    moy = Makie.lines!(axc, statsLG.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
     #axislegend(axb, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
     #    orientation = :vertical,labelsize=13,framevisible = false)
-    Makie.xlims!(axc,interval)
+    Makie.xlims!(axc, interval)
 
-    Label(fig[1:3, 0], "Density", rotation = pi/2,labelsize=25)
-    Label(fig[4,1:4], "Time (s)")
+    Label(fig[1:3, 0], "Density", rotation=pi / 2, labelsize=25)
+    Label(fig[4, 1:4], "Time (s)")
 
     fig
 end
@@ -266,14 +210,15 @@ end
 # SAVING
 ######################################################################################################
 
-plot_benchmark(statsPB, statsPE, statsLG)
-savefig("benchmark_each_time_steps.png")
-
 fig = plot_benchmark_Makie(statsPB, statsPE, statsLG)
-save("/Users/simon/Desktop/perf.pdf", fig, px_per_unit = 2) # output size = 1600 x 1200 pixels
-# perfs = DataFrame("TimePB" => time_PB, "TimeLGE" => time_LG, "TimePE" => time_PE)
-# perfs = hcat(set, perfs)
-# CSV.write("Simulation_times_" * string(N) * ".csv", perfs)
+save("benchmark_each_time_steps.png", fig, px_per_unit=2) # output size = 1600 x 1200 pixels
+
+df = DataFrame(
+    [getfield(j, i) for i in fieldnames(stat_res), j in [statsPB, statsPE, statsLG]],
+    ["PlantBiophysics", "plantecophys", "LeafGasExchange"]
+)
+insertcols!(df, 1, :Stat => [fieldnames(stat_res)...])
+CSV.write("benchmark.csv", df)
 
 
 ######################################################################################################
@@ -381,7 +326,3 @@ statsLG2 = basic_stat(time_LG2)
 
 plot_benchmark(statsPB2, statsPE2, statsLG2)
 savefig("benchmark_all_steps.png")
-
-# perfs2 = DataFrame("TimePB" => time_PB2, "TimeLGE" => time_LG2, "TimePE" => time_PE2)
-# perfs2 = hcat(set2, perfs2)
-# CSV.write("Simulation_times_" * string(N2) * "_all.csv", perfs2)
