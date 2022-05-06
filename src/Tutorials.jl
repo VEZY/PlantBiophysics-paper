@@ -35,9 +35,16 @@ function build_notebooks()
     dir = TUTORIALS_DIR
     output_format = franklin_output
     previous_dir = prev_dir()
+    files = filter(x -> endswith(x, ".jl"), readdir(Tutorials.TUTORIALS_DIR, join=true))
+    pluto_notebooks = copy(files)
+    for i in eachindex(files)
+        first_line = readline(files[i])
+        first_line != "### A Pluto.jl notebook ###" && deleteat!(pluto_notebooks, i)
+    end
+
     bopts = BuildOptions(dir; output_format, previous_dir)
     hopts = HTMLOptions(; append_build_context=true)
-    parallel_build(bopts, hopts)
+    parallel_build(bopts, pluto_notebooks, hopts)
     return nothing
 end
 
