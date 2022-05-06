@@ -6,16 +6,16 @@ using InteractiveUtils
 
 # ╔═╡ 211f1a10-061d-452a-b061-aa5eb5f07428
 begin
-	using PlantBiophysics
-	using Cropbox
-	using LeafGasExchange
-	using RCall
-	using Statistics
-	using DataFrames
-	using CairoMakie
-	using CSV
-	using Random
-	using BenchmarkTools
+    using PlantBiophysics
+    using Cropbox
+    using LeafGasExchange
+    using RCall
+    using Statistics
+    using DataFrames
+    using CairoMakie
+    using CSV
+    using Random
+    using BenchmarkTools
 end
 
 # ╔═╡ 994a4062-39cf-49b7-b19e-63ff90e9a574
@@ -23,7 +23,7 @@ md"""
 
 # _PlantBiophysics.jl_ benchmark
 
-The main objective of this notebook is to compare the computational times of `PlantBiophysics.jl` against the `plantecophys` R package and the `LeafGasExchange.jl` Julia package from the `Cropbox.jl` framework. The comparison follows three steps: 
+The main objective of this notebook is to compare the computational times of `PlantBiophysics.jl` against the `plantecophys` R package and the `LeafGasExchange.jl` Julia package from the `Cropbox.jl` framework. The comparison follows three steps:
 - create an N-large basis of random conditions.
 - benchmark the computational time of the three packages via similar functions (_i.e._ photosynthesis-stomatal conductance-energy balance coupled model for C3 leaves): `energy_balance`, `photosynEB` and `simulate` with `ModelC3MD`.
 - compare the results with plots and statistics.
@@ -36,7 +36,7 @@ The main objective of this notebook is to compare the computational times of `Pl
 update = false
 
 # ╔═╡ 9c3f432b-4d1f-4765-9989-17e983cee5f7
-md""" 
+md"""
 
 ## Parameters
 
@@ -47,10 +47,10 @@ You'll find below the main parameters of the benchmark. In few words, each packa
 
 # ╔═╡ e7e23262-1813-4fe5-80fb-2be20cb54f89
 begin
-	Random.seed!(1) # Set random seed
-	microbenchmark_steps = 100 # Number of times the microbenchmark is run
-	microbenchmark_evals = 1 # N. times each sample is run to be sure of the output
-	N = 100 # Number of timesteps simulated for each microbenchmark step
+    Random.seed!(1) # Set random seed
+    microbenchmark_steps = 100 # Number of times the microbenchmark is run
+    microbenchmark_evals = 1 # N. times each sample is run to be sure of the output
+    N = 100 # Number of timesteps simulated for each microbenchmark step
 end
 
 # ╔═╡ 65d00bf6-8f9a-40b4-947a-fd46ddc89753
@@ -78,24 +78,24 @@ We create possible ranges for input parameters. These ranges where chosen so all
 
 # ╔═╡ acc685f9-7ae8-483d-982e-ff45ccd9e860
 begin
-	# Create the ranges of input parameters
-	length_range = 10000
-	Rs = range(10, 500, length=length_range)
-	Ta = range(18, 40, length=length_range)
-	Wind = range(0.5, 20, length=length_range)
-	P = range(90, 101, length=length_range)
-	Rh = range(0.1, 0.98, length=length_range)
-	Ca = range(360, 900, length=length_range)
-	skyF = range(0.0, 1.0, length=length_range)
-	d = range(0.001, 0.5, length=length_range)
-	Jmax = range(200.0, 300.0, length=length_range)
-	Vmax = range(150.0, 250.0, length=length_range)
-	Rd = range(0.3, 2.0, length=length_range)
-	TPU = range(5.0, 20.0, length=length_range)
-	g0 = range(0.001, 2.0, length=length_range)
-	g1 = range(0.5, 15.0, length=length_range)
-	vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
-	nothing
+    # Create the ranges of input parameters
+    length_range = 10000
+    Rs = range(10, 500, length=length_range)
+    Ta = range(18, 40, length=length_range)
+    Wind = range(0.5, 20, length=length_range)
+    P = range(90, 101, length=length_range)
+    Rh = range(0.1, 0.98, length=length_range)
+    Ca = range(360, 900, length=length_range)
+    skyF = range(0.0, 1.0, length=length_range)
+    d = range(0.001, 0.5, length=length_range)
+    Jmax = range(200.0, 300.0, length=length_range)
+    Vmax = range(150.0, 250.0, length=length_range)
+    Rd = range(0.3, 2.0, length=length_range)
+    TPU = range(5.0, 20.0, length=length_range)
+    g0 = range(0.001, 2.0, length=length_range)
+    g1 = range(0.5, 15.0, length=length_range)
+    vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
+    nothing
 end
 
 # ╔═╡ b8126c39-8c6c-490d-9992-8922e88f8857
@@ -103,13 +103,13 @@ md"We then sample `N` conditions from the given ranges:"
 
 # ╔═╡ a0476d0d-64d9-4457-b78d-41519e38e859
 begin
-	set = [rand.(vars) for i in 1:N]
-	set = reshape(vcat(set...), (length(set[1]), length(set)))'
-	name = ["T", "Wind", "P", "Rh", "Ca", "JMaxRef", "VcMaxRef", "RdRef", "Rs", "sky_fraction", "d", "TPURef", "g0", "g1"]
-	set = DataFrame(set, name)
-	@. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
-	@. set[!, :PPFD] = set.Rs * 0.48 * 4.57
-	set
+    set = [rand.(vars) for i in 1:N]
+    set = reshape(vcat(set...), (length(set[1]), length(set)))'
+    name = ["T", "Wind", "P", "Rh", "Ca", "JMaxRef", "VcMaxRef", "RdRef", "Rs", "sky_fraction", "d", "TPURef", "g0", "g1"]
+    set = DataFrame(set, name)
+    @. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
+    @. set[!, :PPFD] = set.Rs * 0.48 * 4.57
+    set
 end
 
 # ╔═╡ ae00e44e-d864-4d04-b2e8-fac510ce44bb
@@ -126,19 +126,19 @@ Preparing R to make the benchmark:
 
 # ╔═╡ ae4f7b8f-085e-4997-ae0c-4e3f38d1cee4
 begin
-if update
-	R"""
-		if(!require("plantecophys")){
-			install.packages("plantecophys", repos = "https://cloud.r-project.org")
-		}
-		if(!require("microbenchmark")){
-			install.packages("microbenchmark", repos = "https://cloud.r-project.org")
-		}
-	"""
+    if update
+        R"""
+        	if(!require("plantecophys")){
+        		install.packages("plantecophys", repos = "https://cloud.r-project.org")
+        	}
+        	if(!require("microbenchmark")){
+        		install.packages("microbenchmark", repos = "https://cloud.r-project.org")
+        	}
+        """
 
-	# Make variables available to the R session
-	@rput set N microbenchmark_steps
-end
+        # Make variables available to the R session
+        @rput set N microbenchmark_steps
+    end
 end
 
 # ╔═╡ 6c94e587-bcd4-42f0-b897-322feeea6986
@@ -148,38 +148,38 @@ Making the benchmark:
 
 # ╔═╡ 39952139-05b6-4794-bfea-482ffb5107e9
 begin
-if update
-	R"""
-	# Define the function call in a function that takes a list as input to limit DataFrame overhead
-	function_EB <- function(input) {
-		PhotosynEB(
-			Tair = input$Tair, VPD = input$VPD, Wind = input$Wind,
-			Wleaf = input$Wleaf,Ca = input$Ca,  StomatalRatio = 1,
-			LeafAbs = input$LeafAbs, gsmodel = "BBOpti", g0 = input$g0, g1 = input$g1,
-			alpha = 0.24, theta = 0.7, Jmax = input$Jmax,
-			Vcmax = input$Vcmax, TPU = input$TPU, Rd = input$Rd,
-			RH = input$RH, PPFD=input$PPFD, Patm = input$Patm
-		)
-	}
-	
-	time_PE = c()
-	for(i in seq_len(N)){
-		# Put the inputs into a vector to limit dataframe overhead:
-		input = list(
-			Tair = set$T[i], VPD = set$vpd[i], Wind = set$Wind[i], Wleaf = set$d[i],
-			Ca = set$Ca[i], LeafAbs = set$sky_fraction[i], g0 = set$g0[i], g1 = set$g1[i],
-			Jmax = set$JMaxRef[i], Vcmax = set$VcMaxRef[i], TPU = set$TPURef[i],
-			Rd = set$RdRef[i], RH = set$Rh[i]*100, PPFD=set$PPFD[i],Patm = set$P[i]
-		)
-	
-		m = microbenchmark(function_EB(input), times = microbenchmark_steps)
-	
-		time_PE = append(time_PE,m$time * 10e-9) # transform in seconds
-	}
-	"""
+    if update
+        R"""
+        # Define the function call in a function that takes a list as input to limit DataFrame overhead
+        function_EB <- function(input) {
+        	PhotosynEB(
+        		Tair = input$Tair, VPD = input$VPD, Wind = input$Wind,
+        		Wleaf = input$Wleaf,Ca = input$Ca,  StomatalRatio = 1,
+        		LeafAbs = input$LeafAbs, gsmodel = "BBOpti", g0 = input$g0, g1 = input$g1,
+        		alpha = 0.24, theta = 0.7, Jmax = input$Jmax,
+        		Vcmax = input$Vcmax, TPU = input$TPU, Rd = input$Rd,
+        		RH = input$RH, PPFD=input$PPFD, Patm = input$Patm
+        	)
+        }
 
-	@rget time_PE
-end
+        time_PE = c()
+        for(i in seq_len(N)){
+        	# Put the inputs into a vector to limit dataframe overhead:
+        	input = list(
+        		Tair = set$T[i], VPD = set$vpd[i], Wind = set$Wind[i], Wleaf = set$d[i],
+        		Ca = set$Ca[i], LeafAbs = set$sky_fraction[i], g0 = set$g0[i], g1 = set$g1[i],
+        		Jmax = set$JMaxRef[i], Vcmax = set$VcMaxRef[i], TPU = set$TPURef[i],
+        		Rd = set$RdRef[i], RH = set$Rh[i]*100, PPFD=set$PPFD[i],Patm = set$P[i]
+        	)
+
+        	m = microbenchmark(function_EB(input), times = microbenchmark_steps)
+
+        	time_PE = append(time_PE,m$time * 10e-9) # transform in seconds
+        }
+        """
+
+        @rget time_PE
+    end
 end
 
 # ╔═╡ 4dad9b75-3a03-4da1-9aa8-fea02fb48a97
@@ -191,29 +191,29 @@ Note that we benchmark `LeafGasExchange.jl` with the `nounit` flag to make a fai
 
 # ╔═╡ 2b08f21b-7c9a-43a0-9d42-dd613f7335f6
 begin
-if update
-	time_LG = []
-	n_lg = fill(0, N)
-	for i in 1:N
-		config = :Weather => (
-			PFD=set.PPFD[i],
-			CO2=set.Ca[i],
-			RH=set.Rh[i] * 100,
-			T_air=set.T[i],
-			wind=set.Wind[i],
-			P_air=set.P[i],
-			g0=set.g0[i],
-			g1=set.g1[i],
-			Vcmax=set.VcMaxRef[i],
-			Jmax=set.JMaxRef[i],
-			Rd=set.RdRef[i],
-			TPU=set.TPURef[i]
-		)
-		b_LG = @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples = microbenchmark_steps
-		append!(time_LG, b_LG.times .* 1e-9) # transform in seconds
-		n_lg[i] = 1
-	end
-end
+    if update
+        time_LG = []
+        n_lg = fill(0, N)
+        for i in 1:N
+            config = :Weather => (
+                PFD=set.PPFD[i],
+                CO2=set.Ca[i],
+                RH=set.Rh[i] * 100,
+                T_air=set.T[i],
+                wind=set.Wind[i],
+                P_air=set.P[i],
+                g0=set.g0[i],
+                g1=set.g1[i],
+                Vcmax=set.VcMaxRef[i],
+                Jmax=set.JMaxRef[i],
+                Rd=set.RdRef[i],
+                TPU=set.TPURef[i]
+            )
+            b_LG = @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples = microbenchmark_steps
+            append!(time_LG, b_LG.times .* 1e-9) # transform in seconds
+            n_lg[i] = 1
+        end
+    end
 end
 
 # ╔═╡ 60f769b9-bf8c-461c-9739-f31ca43b27b8
@@ -224,27 +224,28 @@ Benchmarking `PlantBiophysics.jl`:
 """
 
 # ╔═╡ f6d13a95-ddfc-415f-9c83-25a1912728e6
-if update begin
-	time_PB = []
-	for i in 1:N
-		leaf = LeafModels(
-			energy=Monteith(),
-			photosynthesis=
-				Fvcb(
-					VcMaxRef=set.VcMaxRef[i],
-					JMaxRef=set.JMaxRef[i],
-					RdRef=set.RdRef[i],
-					TPURef=set.TPURef[i]
-				),
-			stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
-			Rₛ=set.Rs[i], sky_fraction=set.sky_fraction[i], PPFD=set.PPFD[i], d=set.d[i]
-		)
-		meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
-	
-		b_PB = @benchmark energy_balance!($leaf, $meteo) evals = microbenchmark_evals samples = microbenchmark_steps
-		append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
-	end
-end
+if update
+    begin
+        time_PB = []
+        for i in 1:N
+            leaf = LeafModels(
+                energy=Monteith(),
+                photosynthesis=
+                Fvcb(
+                    VcMaxRef=set.VcMaxRef[i],
+                    JMaxRef=set.JMaxRef[i],
+                    RdRef=set.RdRef[i],
+                    TPURef=set.TPURef[i]
+                ),
+                stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
+                Rₛ=set.Rs[i], sky_fraction=set.sky_fraction[i], PPFD=set.PPFD[i], d=set.d[i]
+            )
+            meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
+
+            b_PB = @benchmark energy_balance!($leaf, $meteo) evals = microbenchmark_evals samples = microbenchmark_steps
+            append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
+        end
+    end
 end
 
 # ╔═╡ 87cc52dd-9878-422d-a10e-d491db2a04c6
@@ -296,27 +297,27 @@ end
 
 # ╔═╡ e56f829e-4b83-457a-8e90-a08e071cd5f3
 begin
-	Base.show(io::IO, m::StatResults) = print(io, m.mean, "(±", m.stddev, ')')
+    Base.show(io::IO, m::StatResults) = print(io, m.mean, "(±", m.stddev, ')')
 
-	function Base.show(io::IO, ::MIME"text/plain", m::StatResults)
-	    print(
-	        io,
-	        "Benchmark:",
-	        "\nMean time -> ", m.mean, " ± ", m.stddev,
-	        "\nMedian time -> ", m.median,
-	        "\nMinimum time -> ", m.min,
-	        "\nMaximum time -> ", m.max,
-	    )
-	end
+    function Base.show(io::IO, ::MIME"text/plain", m::StatResults)
+        print(
+            io,
+            "Benchmark:",
+            "\nMean time -> ", m.mean, " ± ", m.stddev,
+            "\nMedian time -> ", m.median,
+            "\nMinimum time -> ", m.min,
+            "\nMaximum time -> ", m.max,
+        )
+    end
 
-md"""
-**Base.show**
+    md"""
+    **Base.show**
 
-	Base.show(io::IO, m::StatResults)
-	Base.show(io::IO, ::MIME"text/plain", m::StatResults)
+    	Base.show(io::IO, m::StatResults)
+    	Base.show(io::IO, ::MIME"text/plain", m::StatResults)
 
-Add a show method for our `StatResults` type.
-"""
+    Add a show method for our `StatResults` type.
+    """
 end
 
 # ╔═╡ 30a52bf1-ff77-4f9b-a87a-e9dd8ad0c1c4
@@ -336,40 +337,40 @@ end
 
 # ╔═╡ 3e27bc15-9d80-424b-b3c9-a0690a9dc849
 begin
-if update
-	statsPB = basic_stat(time_PB)
-	statsPE = basic_stat(time_PE)
-	statsLG = basic_stat(time_LG)
-	
-	factorPE = mean(time_PE) / mean(time_PB)
-	factorLG = mean(time_LG) / mean(time_PB)
+    if update
+        statsPB = basic_stat(time_PB)
+        statsPE = basic_stat(time_PE)
+        statsLG = basic_stat(time_LG)
 
-	# Write overall timings:
-	df = DataFrame(
-		[getfield(j, i) for i in fieldnames(StatResults), j in [statsPB, statsPE, statsLG]],
-		["PlantBiophysics", "plantecophys", "LeafGasExchange"]
-	)
-	insertcols!(df, 1, :Stat => [fieldnames(StatResults)...])
-	CSV.write("benchmark.csv", df)
+        factorPE = mean(time_PE) / mean(time_PB)
+        factorLG = mean(time_LG) / mean(time_PB)
 
-	# Write timing for each sample:
-	CSV.write("benchmark_full.csv",
-	    DataFrame(
-	        "package" => vcat(
-	            [
-	                repeat([i.first], length(i.second)) for i in [
-	                    "PlantBiophysics" => time_PB,
-	                    "plantecophys" => time_PE,
-	                    "LeafGasExchange" => time_LG
-	                ]
-	            ]...
-	        ),
-	        "sample_time" => vcat(time_PB, time_PE, time_LG)
-	    )
-	)
-else 
-	CSV.read("benchmark.csv", DataFrame)
-end
+        # Write overall timings:
+        df = DataFrame(
+            [getfield(j, i) for i in fieldnames(StatResults), j in [statsPB, statsPE, statsLG]],
+            ["PlantBiophysics", "plantecophys", "LeafGasExchange"]
+        )
+        insertcols!(df, 1, :Stat => [fieldnames(StatResults)...])
+        CSV.write("benchmark.csv", df)
+
+        # Write timing for each sample:
+        CSV.write("benchmark_full.csv",
+            DataFrame(
+                "package" => vcat(
+                    [
+                        repeat([i.first], length(i.second)) for i in [
+                            "PlantBiophysics" => time_PB,
+                            "plantecophys" => time_PE,
+                            "LeafGasExchange" => time_LG
+                        ]
+                    ]...
+                ),
+                "sample_time" => vcat(time_PB, time_PE, time_LG)
+            )
+        )
+    else
+        CSV.read("benchmark.csv", DataFrame)
+    end
 end
 
 # ╔═╡ ac330756-f1ac-431c-9e60-7d346e06aa1f
@@ -428,16 +429,16 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
 end
 
 # ╔═╡ 1adfa147-c980-48c7-a84d-03847ffa8e6a
-if update 
-	fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
-	save("benchmark_each_time_steps.png", fig, px_per_unit=3)
+if update
+    fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
+    save("benchmark_each_time_steps.png", fig, px_per_unit=3)
 else
-	md"""
-	![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/benchmark_each_time_steps.png?raw=true)
+    md"""
+    ![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/benchmark_each_time_steps.png?raw=true)
 
-	!!! note 
-		This is the plot from the latest commit on <https://github.com/VEZY/PlantBiophysics-paper/>. If you want to make your own benchmarking, set the `update` object to `true`, but careful, it takes a long time to perform!
-	"""
+    !!! note
+    	This is the plot from the latest commit on <https://github.com/VEZY/PlantBiophysics-paper/>. If you want to make your own benchmarking, set the `update` object to `true`, but careful, it takes a long time to perform!
+    """
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
