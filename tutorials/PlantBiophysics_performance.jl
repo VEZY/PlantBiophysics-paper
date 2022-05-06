@@ -126,19 +126,19 @@ Preparing R to make the benchmark:
 
 # ╔═╡ ae4f7b8f-085e-4997-ae0c-4e3f38d1cee4
 begin
-	if update
-		R"""
-			if(!require("plantecophys")){
-				install.packages("plantecophys", repos = "https://cloud.r-project.org")
-			}
-			if(!require("microbenchmark")){
-				install.packages("microbenchmark", repos = "https://cloud.r-project.org")
-			}
-		"""
-	
-		# Make variables available to the R session
-		@rput set N microbenchmark_steps
-	end
+if update
+	R"""
+		if(!require("plantecophys")){
+			install.packages("plantecophys", repos = "https://cloud.r-project.org")
+		}
+		if(!require("microbenchmark")){
+			install.packages("microbenchmark", repos = "https://cloud.r-project.org")
+		}
+	"""
+
+	# Make variables available to the R session
+	@rput set N microbenchmark_steps
+end
 end
 
 # ╔═╡ 6c94e587-bcd4-42f0-b897-322feeea6986
@@ -148,38 +148,38 @@ Making the benchmark:
 
 # ╔═╡ 39952139-05b6-4794-bfea-482ffb5107e9
 begin
-	if update
-		R"""
-		# Define the function call in a function that takes a list as input to limit DataFrame overhead
-		function_EB <- function(input) {
-		    PhotosynEB(
-		        Tair = input$Tair, VPD = input$VPD, Wind = input$Wind,
-		        Wleaf = input$Wleaf,Ca = input$Ca,  StomatalRatio = 1,
-		        LeafAbs = input$LeafAbs, gsmodel = "BBOpti", g0 = input$g0, g1 = input$g1,
-		        alpha = 0.24, theta = 0.7, Jmax = input$Jmax,
-		        Vcmax = input$Vcmax, TPU = input$TPU, Rd = input$Rd,
-		        RH = input$RH, PPFD=input$PPFD, Patm = input$Patm
-		    )
-		}
-		
-		time_PE = c()
-		for(i in seq_len(N)){
-		    # Put the inputs into a vector to limit dataframe overhead:
-		    input = list(
-		        Tair = set$T[i], VPD = set$vpd[i], Wind = set$Wind[i], Wleaf = set$d[i],
-		        Ca = set$Ca[i], LeafAbs = set$sky_fraction[i], g0 = set$g0[i], g1 = set$g1[i],
-		        Jmax = set$JMaxRef[i], Vcmax = set$VcMaxRef[i], TPU = set$TPURef[i],
-		        Rd = set$RdRef[i], RH = set$Rh[i]*100, PPFD=set$PPFD[i],Patm = set$P[i]
-		    )
-		
-		    m = microbenchmark(function_EB(input), times = microbenchmark_steps)
-		
-		    time_PE = append(time_PE,m$time * 10e-9) # transform in seconds
-		}
-		"""
+if update
+	R"""
+	# Define the function call in a function that takes a list as input to limit DataFrame overhead
+	function_EB <- function(input) {
+		PhotosynEB(
+			Tair = input$Tair, VPD = input$VPD, Wind = input$Wind,
+			Wleaf = input$Wleaf,Ca = input$Ca,  StomatalRatio = 1,
+			LeafAbs = input$LeafAbs, gsmodel = "BBOpti", g0 = input$g0, g1 = input$g1,
+			alpha = 0.24, theta = 0.7, Jmax = input$Jmax,
+			Vcmax = input$Vcmax, TPU = input$TPU, Rd = input$Rd,
+			RH = input$RH, PPFD=input$PPFD, Patm = input$Patm
+		)
+	}
+	
+	time_PE = c()
+	for(i in seq_len(N)){
+		# Put the inputs into a vector to limit dataframe overhead:
+		input = list(
+			Tair = set$T[i], VPD = set$vpd[i], Wind = set$Wind[i], Wleaf = set$d[i],
+			Ca = set$Ca[i], LeafAbs = set$sky_fraction[i], g0 = set$g0[i], g1 = set$g1[i],
+			Jmax = set$JMaxRef[i], Vcmax = set$VcMaxRef[i], TPU = set$TPURef[i],
+			Rd = set$RdRef[i], RH = set$Rh[i]*100, PPFD=set$PPFD[i],Patm = set$P[i]
+		)
+	
+		m = microbenchmark(function_EB(input), times = microbenchmark_steps)
+	
+		time_PE = append(time_PE,m$time * 10e-9) # transform in seconds
+	}
+	"""
 
-		@rget time_PE
-	end
+	@rget time_PE
+end
 end
 
 # ╔═╡ 4dad9b75-3a03-4da1-9aa8-fea02fb48a97
@@ -191,29 +191,29 @@ Note that we benchmark `LeafGasExchange.jl` with the `nounit` flag to make a fai
 
 # ╔═╡ 2b08f21b-7c9a-43a0-9d42-dd613f7335f6
 begin
-	if update
-		time_LG = []
-		n_lg = fill(0, N)
-		for i in 1:N
-		    config = :Weather => (
-		        PFD=set.PPFD[i],
-		        CO2=set.Ca[i],
-		        RH=set.Rh[i] * 100,
-		        T_air=set.T[i],
-		        wind=set.Wind[i],
-		        P_air=set.P[i],
-		        g0=set.g0[i],
-		        g1=set.g1[i],
-		        Vcmax=set.VcMaxRef[i],
-		        Jmax=set.JMaxRef[i],
-		        Rd=set.RdRef[i],
-		        TPU=set.TPURef[i]
-		    )
-		    b_LG = @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples = microbenchmark_steps
-		    append!(time_LG, b_LG.times .* 1e-9) # transform in seconds
-		    n_lg[i] = 1
+if update
+	time_LG = []
+	n_lg = fill(0, N)
+	for i in 1:N
+		config = :Weather => (
+			PFD=set.PPFD[i],
+			CO2=set.Ca[i],
+			RH=set.Rh[i] * 100,
+			T_air=set.T[i],
+			wind=set.Wind[i],
+			P_air=set.P[i],
+			g0=set.g0[i],
+			g1=set.g1[i],
+			Vcmax=set.VcMaxRef[i],
+			Jmax=set.JMaxRef[i],
+			Rd=set.RdRef[i],
+			TPU=set.TPURef[i]
+		)
+		b_LG = @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples = microbenchmark_steps
+		append!(time_LG, b_LG.times .* 1e-9) # transform in seconds
+		n_lg[i] = 1
 	end
-	end
+end
 end
 
 # ╔═╡ 60f769b9-bf8c-461c-9739-f31ca43b27b8
@@ -224,28 +224,27 @@ Benchmarking `PlantBiophysics.jl`:
 """
 
 # ╔═╡ f6d13a95-ddfc-415f-9c83-25a1912728e6
-begin
-	if update
-		time_PB = []
-		for i in 1:N
-			leaf = LeafModels(
-		        energy=Monteith(),
-		        photosynthesis=
-					Fvcb(
-			            VcMaxRef=set.VcMaxRef[i],
-			            JMaxRef=set.JMaxRef[i],
-			            RdRef=set.RdRef[i],
-			            TPURef=set.TPURef[i]
-					),
-		        stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
-		        Rₛ=set.Rs[i], sky_fraction=set.sky_fraction[i], PPFD=set.PPFD[i], d=set.d[i]
-		    )
-			meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
-		
-		    b_PB = @benchmark energy_balance!($leaf, $meteo) evals = microbenchmark_evals samples = microbenchmark_steps
-		    append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
-		end
+if update begin
+	time_PB = []
+	for i in 1:N
+		leaf = LeafModels(
+			energy=Monteith(),
+			photosynthesis=
+				Fvcb(
+					VcMaxRef=set.VcMaxRef[i],
+					JMaxRef=set.JMaxRef[i],
+					RdRef=set.RdRef[i],
+					TPURef=set.TPURef[i]
+				),
+			stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
+			Rₛ=set.Rs[i], sky_fraction=set.sky_fraction[i], PPFD=set.PPFD[i], d=set.d[i]
+		)
+		meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
+	
+		b_PB = @benchmark energy_balance!($leaf, $meteo) evals = microbenchmark_evals samples = microbenchmark_steps
+		append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
 	end
+end
 end
 
 # ╔═╡ 87cc52dd-9878-422d-a10e-d491db2a04c6
@@ -277,7 +276,7 @@ md"""
 
 # ╔═╡ 22ec1978-aaee-4fa1-b739-1246a6aeda20
 """
-	stat_res(
+	StatResults(
 		mean::AbstractFloat
     	median::AbstractFloat
     	stddev::AbstractFloat
@@ -287,12 +286,37 @@ md"""
 
 Structure to hold basic statistics of model performance.
 """
-struct stat_res
+struct StatResults
     mean::AbstractFloat
     median::AbstractFloat
     stddev::AbstractFloat
     min::AbstractFloat
     max::AbstractFloat
+end
+
+# ╔═╡ e56f829e-4b83-457a-8e90-a08e071cd5f3
+begin
+	Base.show(io::IO, m::StatResults) = print(io, m.mean, "(±", m.stddev, ')')
+
+	function Base.show(io::IO, ::MIME"text/plain", m::StatResults)
+	    print(
+	        io,
+	        "Benchmark:",
+	        "\nMean time -> ", m.mean, " ± ", m.stddev,
+	        "\nMedian time -> ", m.median,
+	        "\nMinimum time -> ", m.min,
+	        "\nMaximum time -> ", m.max,
+	    )
+	end
+
+md"""
+**Base.show**
+
+	Base.show(io::IO, m::StatResults)
+	Base.show(io::IO, ::MIME"text/plain", m::StatResults)
+
+Add a show method for our `StatResults` type.
+"""
 end
 
 # ╔═╡ 30a52bf1-ff77-4f9b-a87a-e9dd8ad0c1c4
@@ -312,61 +336,101 @@ end
 
 # ╔═╡ 3e27bc15-9d80-424b-b3c9-a0690a9dc849
 begin
-	if update
-		statsPB = basic_stat(time_PB)
-		statsPE = basic_stat(time_PE)
-		statsLG = basic_stat(time_LG)
-		
-		factorPE = mean(time_PE) / mean(time_PB)
-		factorLG = mean(time_LG) / mean(time_PB)
+if update
+	statsPB = basic_stat(time_PB)
+	statsPE = basic_stat(time_PE)
+	statsLG = basic_stat(time_LG)
+	
+	factorPE = mean(time_PE) / mean(time_PB)
+	factorLG = mean(time_LG) / mean(time_PB)
 
-		DataFrame("PlantBiophysics" => statsPB, "plantecophys" => statsPE, "LeafGasExchange" => statsLG)
-	else 
-		CSV.read("benchmark.csv", DataFrame)
-	end
+	# Write overall timings:
+	df = DataFrame(
+		[getfield(j, i) for i in fieldnames(StatResults), j in [statsPB, statsPE, statsLG]],
+		["PlantBiophysics", "plantecophys", "LeafGasExchange"]
+	)
+	insertcols!(df, 1, :Stat => [fieldnames(StatResults)...])
+	CSV.write("benchmark.csv", df)
+
+	# Write timing for each sample:
+	CSV.write("benchmark_full.csv",
+	    DataFrame(
+	        "package" => vcat(
+	            [
+	                repeat([i.first], length(i.second)) for i in [
+	                    "PlantBiophysics" => time_PB,
+	                    "plantecophys" => time_PE,
+	                    "LeafGasExchange" => time_LG
+	                ]
+	            ]...
+	        ),
+	        "sample_time" => vcat(time_PB, time_PE, time_LG)
+	    )
+	)
+else 
+	CSV.read("benchmark.csv", DataFrame)
+end
 end
 
 # ╔═╡ ac330756-f1ac-431c-9e60-7d346e06aa1f
-function plot_benchmark_Makie(statsPB,statsPE,statsLG)
+function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
+    size_inches = (6.7, 5)
+    size_pt = 72 .* size_inches
+    bins = 220
     noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
-    fig = Makie.Figure(backgroundcolor = RGBf(1, 1, 1),resolution = (1000, 800),font=noto_sans,dpi=600,size=(1000,1000),xminorgridstyle=true)
-    ep=1e-9
-    interval = (3e-6, 2e-1) # x-axis
+    fig = Figure(backgroundcolor=RGBf(1, 1, 1), resolution=size_pt, font=noto_sans, fontsize=10)
+    ep = 1e-9
+    extr = extrema(vcat(time_PB, time_PE, time_LG))
+    interval = (extr[1] * 1e-1, extr[2])
 
-    axa = Axis(fig[1,1:3],title="(a) PlantBiophysics.jl",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
-    stddevi = Makie.poly!(axa,Rect(max(ep, statsPB.mean - statsPB.stddev), 0., 2*statsPB.stddev, 0.2),color=(:orange, 0.3))
-    Makie.hist!(axa,time_PB[time_PB.<1e-4], normalization=:probability, bins=300)
-    moy = Makie.lines!(axa,statsPB.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
-    axislegend(axa, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
-        orientation = :vertical,labelsize=13,framevisible = false)
-    Makie.xlims!(axa,interval)
+    ga = fig[1, 1] = GridLayout()
 
-    axb = Axis(fig[2,1:3],title="(b) plantecophys",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
-    stddevi = Makie.poly!(axb,Rect(statsPE.mean - statsPE.stddev, 0., 2*statsPE.stddev, 0.2),color=(:orange, 0.3))
-    Makie.hist!(axb,time_PE[time_PE.<1e-0],normalization=:probability, bins=100)
-    moy = Makie.lines!(axb,statsPE.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
-    #axislegend(axb, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
-    #    orientation = :vertical,labelsize=13,framevisible = false)
-    Makie.xlims!(axb,interval)
+    axa = Axis(ga[1, 1], title="(a) PlantBiophysics.jl", xscale=log10, titlealign=:left, titlesize=10)
+    stddevi = poly!(
+        axa,
+        Rect(max(ep, statsPB.mean - statsPB.stddev), 0.0, 2 * statsPB.stddev, 1),
+        color=(:orange, 0.3), yautolimits=false
+    )
+    moy = vlines!(axa, statsPB.mean; color=:red, linewidth=3, linestyle=:dot)
+    hist!(axa, time_PB, normalization=:probability, bins=bins)
+    # h = axa.finallimits[].widths[2]
+    axislegend(axa, [stddevi, moy], ["95% confidence interval", "Mean"], "", position=:rb,
+        orientation=:vertical, labelsize=8, framevisible=false)
+    xlims!(axa, interval)
 
-    axc = Axis(fig[3,1:3],title="(c) LeafGasExchange.jl",yminorticks= IntervalsBetween(10),xscale=log10,xminorticks= IntervalsBetween(10),yminorgridvisible=true,yminorticksvisible = true,xminorgridvisible=true,xminorticksvisible = true)
-    stddevi = Makie.poly!(axc,Rect(statsLG.mean - statsLG.stddev, 0., 2*statsLG.stddev, 0.2),color=(:orange, 0.3))
-    Makie.hist!(axc,time_LG[time_LG.<1e-1],normalization=:probability, bins=80)
-    moy = Makie.lines!(axc,statsLG.mean * [1, 1], [0.0, 0.2], linewidth=3, linestyle=:dot, color=:red)
-    #axislegend(axb, [stddevi,moy], ["95% confidence interval","Mean"], "", position = :rb,
-    #    orientation = :vertical,labelsize=13,framevisible = false)
-    Makie.xlims!(axc,interval)
+    axb = Axis(ga[2, 1], title="(b) plantecophys", xscale=log10, ylabel="Density", titlealign=:left, titlesize=10)
+    stddevi = poly!(
+        axb,
+        Rect(statsPE.mean - statsPE.stddev, 0.0, 2 * statsPE.stddev, 1),
+        color=(:orange, 0.3), yautolimits=false
+    )
+    vlines!(axb, statsPE.mean; color=:red, linewidth=3, linestyle=:dot)
+    hist!(axb, time_PE, normalization=:probability, bins=bins)
+    xlims!(axb, interval)
 
-    Label(fig[1:3, 0], "Density", rotation = pi/2,labelsize=25)
-    Label(fig[4,1:4], "Time (s)")
+    # axc = Axis(ga[3, 1], title="(c) LeafGasExchange.jl", yminorticks=IntervalsBetween(10),
+    #     xscale=log10, xminorticks=IntervalsBetween(10), yminorgridvisible=true, yminorticksvisible=true,
+    #     xminorgridvisible=true, xminorticksvisible=true, xlabel="Time (s)")
+    axc = Axis(ga[3, 1], title="(c) LeafGasExchange.jl", xscale=log10, xlabel="Time (s)", titlealign=:left, titlesize=10)
+    stddevi = poly!(
+        axc,
+        Rect(statsLG.mean - statsLG.stddev, 0.0, 2 * statsLG.stddev, 1),
+        color=(:orange, 0.3), yautolimits=false
+    )
+    vlines!(axc, statsLG.mean; color=:red, linewidth=3, linestyle=:dot)
+    hist!(axc, time_LG, normalization=:probability, bins=bins)
+    xlims!(axc, interval)
 
+    rowgap!(ga, 7)
+    hidexdecorations!(axa, grid=false)
+    hidexdecorations!(axb, grid=false)
     fig
 end
 
 # ╔═╡ 1adfa147-c980-48c7-a84d-03847ffa8e6a
 if update 
-	fig = plot_benchmark_Makie(statsPB, statsPE, statsLG)
-	save("benchmark_each_time_steps_new.png", fig, px_per_unit = 2)
+	fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
+	save("benchmark_each_time_steps.png", fig, px_per_unit=3)
 else
 	md"""
 	![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/benchmark_each_time_steps.png?raw=true)
@@ -392,12 +456,12 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 BenchmarkTools = "~1.3.1"
-CSV = "~0.10.2"
+CSV = "~0.10.4"
 CairoMakie = "~0.7.5"
-Cropbox = "~0.3.19"
-DataFrames = "~1.3.2"
+Cropbox = "~0.3.22"
+DataFrames = "~1.3.4"
 LeafGasExchange = "~0.1.0"
-PlantBiophysics = "~0.1.0"
+PlantBiophysics = "~0.3.0"
 RCall = "~0.13.13"
 """
 
@@ -442,9 +506,9 @@ version = "0.1.0"
 
 [[deps.ArrayInterface]]
 deps = ["Compat", "IfElse", "LinearAlgebra", "Requires", "SparseArrays", "Static"]
-git-tree-sha1 = "9f8186bc19cd1c129d367cb667215517cc03e144"
+git-tree-sha1 = "81f0cb60dc994ca17f68d9fb7c942a5ae70d9ee4"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "5.0.1"
+version = "5.0.8"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -517,9 +581,9 @@ version = "0.1.1"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "9519274b50500b8029973d241d32cfbf0b127d97"
+git-tree-sha1 = "873fb188a4b9d76549b81465b1f75c82aaf59238"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-version = "0.10.2"
+version = "0.10.4"
 
 [[deps.Cairo]]
 deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
@@ -539,23 +603,17 @@ git-tree-sha1 = "4b859a208b2397a7a623a03449e4636bdb17bcf2"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.16.1+1"
 
-[[deps.Calculus]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "f641eb0a4f00c343bbc32346e1217b86f3ce9dad"
-uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
-version = "0.5.1"
-
 [[deps.CategoricalArrays]]
 deps = ["DataAPI", "Future", "Missings", "Printf", "Requires", "Statistics", "Unicode"]
-git-tree-sha1 = "3b60064cb48efe986179359e08ffb568a6d510a2"
+git-tree-sha1 = "109664d3a6f2202b1225478335ea8fea3cd8706b"
 uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-version = "0.10.3"
+version = "0.10.5"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "c9a6160317d1abe9c44b3beb367fd448117679ca"
+git-tree-sha1 = "9950387274246d08af38f6eef8cb5480862a435f"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.13.0"
+version = "1.14.0"
 
 [[deps.ChangesOfVariables]]
 deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
@@ -617,9 +675,9 @@ version = "0.3.0"
 
 [[deps.Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "44c37b4636bc54afac5c574d2d02b625349d6582"
+git-tree-sha1 = "b153278a25dd42c65abbf4e62344f9d22e59191b"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.41.0"
+version = "3.43.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -667,15 +725,15 @@ uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
 [[deps.Cropbox]]
-deps = ["BlackBoxOptim", "CSV", "Cairo", "Conda", "Crayons", "DataFrames", "DataStructures", "Dates", "Distributions", "FileIO", "Gadfly", "Highlights", "ImageMagick", "Interact", "Interpolations", "LightGraphs", "MacroTools", "Markdown", "PolynomialRoots", "ProgressMeter", "QuadGK", "REPL", "Random", "Setfield", "StatsBase", "SymPy", "TimeZones", "TypedTables", "UnicodePlots", "Unitful"]
-git-tree-sha1 = "5a9549cedbf2403977b09adf2f75f7b540e0c232"
+deps = ["BlackBoxOptim", "CSV", "Cairo", "Crayons", "DataFrames", "DataStructures", "Dates", "Distributions", "FileIO", "Gadfly", "Graphviz_jll", "Highlights", "ImageMagick", "Interact", "Interpolations", "LightGraphs", "MacroTools", "Markdown", "PolynomialRoots", "ProgressMeter", "QuadGK", "REPL", "Random", "Setfield", "StatsBase", "SymPy", "TimeZones", "TypedTables", "UnicodePlots", "Unitful"]
+git-tree-sha1 = "b8d0abcb8a6126e429a0c50c80904a6c5f943262"
 uuid = "a904b226-abf1-11e9-2713-059ba252a964"
-version = "0.3.19"
+version = "0.3.22"
 
 [[deps.DataAPI]]
-git-tree-sha1 = "cc70b17275652eb47bc9e5f81635981f13cea5c8"
+git-tree-sha1 = "fb5f5316dd3fd4c5e7c30a24d50643b73e37cd40"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
-version = "1.9.0"
+version = "1.10.0"
 
 [[deps.DataDeps]]
 deps = ["BinaryProvider", "HTTP", "Libdl", "Reexport", "SHA", "p7zip_jll"]
@@ -685,9 +743,9 @@ version = "0.7.7"
 
 [[deps.DataFrames]]
 deps = ["Compat", "DataAPI", "Future", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrettyTables", "Printf", "REPL", "Reexport", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
-git-tree-sha1 = "ae02104e835f219b8930c7664b8012c93475c340"
+git-tree-sha1 = "daa21eb85147f72e41f6352a57fccea377e310a9"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-version = "1.3.2"
+version = "1.3.4"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -716,9 +774,9 @@ version = "0.4.0"
 
 [[deps.Dictionaries]]
 deps = ["Indexing", "Random"]
-git-tree-sha1 = "63004a55faf43a5f7be7f5eca36ce355e9a75b2c"
+git-tree-sha1 = "0340cee29e3456a7de968736ceeb705d591875a2"
 uuid = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
-version = "0.3.18"
+version = "0.3.20"
 
 [[deps.DiffResults]]
 deps = ["StaticArrays"]
@@ -728,9 +786,9 @@ version = "1.0.3"
 
 [[deps.DiffRules]]
 deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
-git-tree-sha1 = "dd933c4ef7b4c270aacd4eb88fa64c147492acf0"
+git-tree-sha1 = "28d605d9a0ac17118fe2c5e9ce0fbb76c3ceb120"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
-version = "1.10.0"
+version = "1.11.0"
 
 [[deps.Distances]]
 deps = ["LinearAlgebra", "SparseArrays", "Statistics", "StatsAPI"]
@@ -744,9 +802,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "9d3c0c762d4666db9187f363a76b47f7346e673b"
+git-tree-sha1 = "8a6b49396a4058771c5c072239b2e0a76e2e898c"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.49"
+version = "0.25.58"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -757,12 +815,6 @@ version = "0.8.6"
 [[deps.Downloads]]
 deps = ["ArgTools", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-
-[[deps.DualNumbers]]
-deps = ["Calculus", "NaNMath", "SpecialFunctions"]
-git-tree-sha1 = "84f04fe68a3176a583b864e492578b9466d87f1e"
-uuid = "fa6b7ba4-c1ee-5f82-b5fc-ecf0adba8f74"
-version = "0.6.6"
 
 [[deps.EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -778,9 +830,9 @@ version = "1.5.0"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "ae13fcbc7ab8f16b0856729b050ef0c446aa3492"
+git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.4.4+0"
+version = "2.4.8+0"
 
 [[deps.ExprTools]]
 git-tree-sha1 = "56559bbef6ca5ea0c0818fa5c90320398a6fbf8d"
@@ -819,24 +871,24 @@ version = "3.3.10+0"
 
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "80ced645013a5dbdc52cf70329399c35ce007fae"
+git-tree-sha1 = "9267e5f50b0e12fdfd5a2455534345c4cf2c7f7a"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.13.0"
+version = "1.14.0"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates", "Mmap", "Printf", "Test", "UUIDs"]
-git-tree-sha1 = "04d13bfa8ef11720c24e4d840c0033d145537df7"
+git-tree-sha1 = "129b104185df66e408edd6625d480b7f9e9823a0"
 uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.9.17"
+version = "0.9.18"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
-git-tree-sha1 = "4c7d3757f3ecbcb9055870351078552b7d1dbd2d"
+git-tree-sha1 = "246621d23d1f43e3b9c368bf3b72b2331a27c286"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "0.13.0"
+version = "0.13.2"
 
 [[deps.FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticArrays"]
@@ -864,9 +916,9 @@ version = "0.4.2"
 
 [[deps.ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "1bd6fc0c344fc0cbee1f42f8d2e7ec8253dda2d2"
+git-tree-sha1 = "7a380de46b0a1db85c59ebbce5788412a39e4cb7"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.25"
+version = "0.10.28"
 
 [[deps.FreeType]]
 deps = ["CEnum", "FreeType2_jll"]
@@ -950,6 +1002,12 @@ git-tree-sha1 = "57c021de207e234108a6f1454003120a1bf350c4"
 uuid = "86223c79-3864-5bf0-83f7-82e725a168b6"
 version = "1.6.0"
 
+[[deps.Graphviz_jll]]
+deps = ["Artifacts", "Cairo_jll", "Expat_jll", "JLLWrappers", "Libdl", "Pango_jll", "Pkg"]
+git-tree-sha1 = "cb399bbf057084282d7036312b1dc7a0eb103bf4"
+uuid = "3c863552-8265-54e4-a6dc-903eb78fde85"
+version = "2.49.3+1"
+
 [[deps.GridLayoutBase]]
 deps = ["GeometryBasics", "InteractiveUtils", "Observables"]
 git-tree-sha1 = "169c3dc5acae08835a573a8a3e25c62f689f8b5c"
@@ -984,12 +1042,6 @@ deps = ["DocStringExtensions", "InteractiveUtils", "REPL"]
 git-tree-sha1 = "d7e1d65e8599f2ee8df09c1461391e66ad9e2885"
 uuid = "eafb193a-b7ab-5a9e-9068-77385905fa72"
 version = "0.5.1"
-
-[[deps.HypergeometricFunctions]]
-deps = ["DualNumbers", "LinearAlgebra", "SpecialFunctions", "Test"]
-git-tree-sha1 = "65e4589030ef3c44d3b90bdc5aac462b4bb05567"
-uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.8"
 
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
@@ -1082,9 +1134,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[deps.Interpolations]]
 deps = ["AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "Requires", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
-git-tree-sha1 = "b15fc0a95c564ca2e0a7ae12c1f095ca848ceb31"
+git-tree-sha1 = "b7bc05649af456efc75d178846f47006c2c4c3c7"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-version = "0.13.5"
+version = "0.13.6"
 
 [[deps.IntervalSets]]
 deps = ["Dates", "EllipsisNotation", "Statistics"]
@@ -1094,9 +1146,9 @@ version = "0.5.4"
 
 [[deps.InverseFunctions]]
 deps = ["Test"]
-git-tree-sha1 = "a7254c0acd8e62f1ac75ad24d5db43f5f19f3c65"
+git-tree-sha1 = "91b5dcf362c5add98049e6c29ee756910b03051d"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
-version = "0.1.2"
+version = "0.1.3"
 
 [[deps.InvertedIndices]]
 git-tree-sha1 = "bee5f1ef5bf65df56bdd2e40447590b272a5471f"
@@ -1126,9 +1178,9 @@ version = "1.0.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "Printf", "Reexport", "TranscodingStreams", "UUIDs"]
-git-tree-sha1 = "28b114b3279cdbac9a61c57b3e6548a572142b34"
+git-tree-sha1 = "81b9477b49402b47fbe7f7ae0b252077f53e4a08"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.21"
+version = "0.4.22"
 
 [[deps.JLLWrappers]]
 deps = ["Preferences"]
@@ -1203,9 +1255,9 @@ version = "1.3.0"
 
 [[deps.Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "a6552bfeab40de157a297d84e03ade4b8177677f"
+git-tree-sha1 = "46a39b9c58749eefb5f2dc1178cb8fab5332b1ab"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.12"
+version = "0.15.15"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1296,9 +1348,9 @@ version = "0.5.4"
 
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "e5718a00af0ab9756305a0392832c8952c7426c1"
+git-tree-sha1 = "76c987446e8d555677f064aaac1145c4c17662f8"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.6"
+version = "0.3.14"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -1340,9 +1392,9 @@ version = "0.4.1"
 
 [[deps.MarchingCubes]]
 deps = ["StaticArrays"]
-git-tree-sha1 = "f6dc3e93fa928bdd4a193d1209b62994a57e7590"
+git-tree-sha1 = "5f768e0a0c3875df386be4c036f78c8bd4b1a9b6"
 uuid = "299715c1-40a9-479a-aaf9-4a633d36f717"
-version = "0.1.1"
+version = "0.1.2"
 
 [[deps.Markdown]]
 deps = ["Base64"]
@@ -1412,14 +1464,14 @@ uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 
 [[deps.MultiScaleTreeGraph]]
 deps = ["AbstractTrees", "DataFrames", "DelimitedFiles", "Graphs", "MetaGraphsNext", "MutableNamedTuples", "OrderedCollections", "Printf", "SHA", "XLSX"]
-git-tree-sha1 = "b54b62b79a265ad46241db31c1e3b27ce4a73e2e"
+git-tree-sha1 = "d0dc30c70217c03211d690a6e16f77552aa58fb0"
 uuid = "dd4a991b-8a45-4075-bede-262ee62d5583"
-version = "0.4.0"
+version = "0.5.0"
 
 [[deps.MutableNamedTuples]]
-git-tree-sha1 = "f84525e443ce35292f4c3bc7fa9642f90c6991ba"
+git-tree-sha1 = "bd551bdbe872d8f132bb0c5fb6e6dec236fa01f9"
 uuid = "af6c499f-54b4-48cc-bbd2-094bba7533c7"
-version = "0.1.0"
+version = "0.1.1"
 
 [[deps.NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
@@ -1434,15 +1486,15 @@ version = "0.3.7"
 
 [[deps.NamedDims]]
 deps = ["AbstractFFTs", "ChainRulesCore", "CovarianceEstimation", "LinearAlgebra", "Pkg", "Requires", "Statistics"]
-git-tree-sha1 = "64a54c2992d5da90e3fa19e1bcf65c06bcda2bac"
+git-tree-sha1 = "0856b62716585eb90cc1dada226ac9eab5f69aa5"
 uuid = "356022a1-0364-5f58-8944-0da4b18d706f"
-version = "0.2.46"
+version = "0.2.47"
 
 [[deps.NearestNeighbors]]
 deps = ["Distances", "StaticArrays"]
-git-tree-sha1 = "16baacfdc8758bc374882566c9187e785e85c2f0"
+git-tree-sha1 = "ded92de95031d4a8c61dfb6ba9adb6f1d8016ddd"
 uuid = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
-version = "0.4.9"
+version = "0.4.10"
 
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore"]
@@ -1527,9 +1579,9 @@ version = "8.44.0+0"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "7e2166042d1698b6072352c74cfd1fca2a968253"
+git-tree-sha1 = "3114946c67ef9925204cc024a73c9e679cebe0d7"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.6"
+version = "0.11.8"
 
 [[deps.PNGFiles]]
 deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
@@ -1557,9 +1609,9 @@ version = "1.50.3+0"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "13468f237353112a01b2d6b32f3d0f80219944aa"
+git-tree-sha1 = "1285416549ccfcdf0c50d4997a94331e88d68413"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.2"
+version = "2.3.1"
 
 [[deps.Pidfile]]
 deps = ["FileWatching", "Test"]
@@ -1585,9 +1637,9 @@ version = "0.1.1"
 
 [[deps.PlantBiophysics]]
 deps = ["CSV", "DataFrames", "Dates", "Impute", "LsqFit", "MultiScaleTreeGraph", "MutableNamedTuples", "OrderedCollections", "RecipesBase", "Statistics", "Test", "YAML"]
-git-tree-sha1 = "d855ea7a02889607e8291c64187d99f741241973"
+git-tree-sha1 = "c8891016722498da99581b983f753c4d44f86ab6"
 uuid = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
-version = "0.1.0"
+version = "0.3.0"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
@@ -1607,15 +1659,15 @@ version = "1.0.0"
 
 [[deps.PooledArrays]]
 deps = ["DataAPI", "Future"]
-git-tree-sha1 = "db3a23166af8aebf4db5ef87ac5b00d36eb771e2"
+git-tree-sha1 = "a6062fe4063cdafe78f4a0a81cfffb89721b30e7"
 uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
-version = "1.4.0"
+version = "1.4.2"
 
 [[deps.Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "de893592a221142f3db370f48290e3a2ef39998f"
+git-tree-sha1 = "47e5f437cc0e7ef2ce8406ce1e7e24d44915f88d"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.2.4"
+version = "1.3.0"
 
 [[deps.PrettyTables]]
 deps = ["Crayons", "Formatting", "Markdown", "Reexport", "Tables"]
@@ -1633,9 +1685,9 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "afadeba63d90ff223a6a48d2009434ecee2ec9e8"
+git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.7.1"
+version = "1.7.2"
 
 [[deps.PyCall]]
 deps = ["Conda", "Dates", "Libdl", "LinearAlgebra", "MacroTools", "Serialization", "VersionParsing"]
@@ -1815,15 +1867,15 @@ version = "0.1.1"
 
 [[deps.Static]]
 deps = ["IfElse"]
-git-tree-sha1 = "87e9954dfa33fd145694e42337bdd3d5b07021a6"
+git-tree-sha1 = "5309da1cdef03e95b73cd3251ac3a39f887da53e"
 uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "0.6.0"
+version = "0.6.4"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "74fb527333e72ada2dd9ef77d98e4991fb185f04"
+git-tree-sha1 = "cd56bf18ed715e8b09f06ef8c6b781e6cdc49911"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.4.1"
+version = "1.4.4"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -1831,9 +1883,9 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "c3d8ba7f3fa0625b062b82853a7d5229cb728b6b"
+git-tree-sha1 = "c82aaa13b44ea00134f8c9c89819477bd3986ecd"
 uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.2.1"
+version = "1.3.0"
 
 [[deps.StatsBase]]
 deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
@@ -1842,16 +1894,16 @@ uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.33.16"
 
 [[deps.StatsFuns]]
-deps = ["ChainRulesCore", "HypergeometricFunctions", "InverseFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
-git-tree-sha1 = "25405d7016a47cf2bd6cd91e66f4de437fd54a07"
+deps = ["ChainRulesCore", "InverseFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
+git-tree-sha1 = "5950925ff997ed6fb3e985dcce8eb1ba42a0bbe7"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
-version = "0.9.16"
+version = "0.9.18"
 
 [[deps.StatsModels]]
 deps = ["DataAPI", "DataStructures", "LinearAlgebra", "Printf", "REPL", "ShiftedArrays", "SparseArrays", "StatsBase", "StatsFuns", "Tables"]
-git-tree-sha1 = "03c99c7ef267c8526953cafe3c4239656693b8ab"
+git-tree-sha1 = "4352d5badd1bc8bf0a8c825e886fa1eda4f0f967"
 uuid = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
-version = "0.6.29"
+version = "0.6.30"
 
 [[deps.StringEncodings]]
 deps = ["Libiconv_jll"]
@@ -1871,9 +1923,9 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 
 [[deps.SymPy]]
 deps = ["CommonEq", "CommonSolve", "Latexify", "LinearAlgebra", "Markdown", "PyCall", "RecipesBase", "SpecialFunctions"]
-git-tree-sha1 = "1763d267a68a4e58330925b7ce8b9ea2ec06c882"
+git-tree-sha1 = "e1865ba3c44551087a04295ddc40c10edf1b24a0"
 uuid = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
-version = "1.1.4"
+version = "1.1.6"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -1892,10 +1944,10 @@ uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
 version = "1.0.1"
 
 [[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "bb1064c9a84c52e277f1096cf41434b675cd368b"
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits", "Test"]
+git-tree-sha1 = "5ce79ce186cc678bbb5c5681ca3379d1ddae11a1"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.6.1"
+version = "1.7.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -1919,9 +1971,9 @@ version = "0.5.5"
 
 [[deps.TimeZones]]
 deps = ["Dates", "Downloads", "InlineStrings", "LazyArtifacts", "Mocking", "Printf", "RecipesBase", "Serialization", "Unicode"]
-git-tree-sha1 = "2d4b6de8676b34525ac518de36006dc2e89c7e2e"
+git-tree-sha1 = "0a359b0ee27e4fbc90d9b3da1f48ddc6f98a0c9e"
 uuid = "f269a46b-ccf7-5d73-abea-4c690281aa53"
-version = "1.7.2"
+version = "1.7.3"
 
 [[deps.TranscodingStreams]]
 deps = ["Random", "Test"]
@@ -1954,10 +2006,10 @@ uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
 
 [[deps.UnicodePlots]]
-deps = ["Contour", "Crayons", "Dates", "LinearAlgebra", "MarchingCubes", "NaNMath", "SparseArrays", "StaticArrays", "StatsBase", "Unitful"]
-git-tree-sha1 = "1785494cb9484f9ab05bbc9d81a2d4de4341eb39"
+deps = ["ColorTypes", "Contour", "Crayons", "Dates", "FileIO", "FreeTypeAbstraction", "LinearAlgebra", "MarchingCubes", "NaNMath", "Printf", "SparseArrays", "StaticArrays", "StatsBase", "Unitful"]
+git-tree-sha1 = "30cdd71bd78478ba19835466c6e2a52ad776d800"
 uuid = "b8865327-cd53-5732-bb35-84acbb429228"
-version = "2.9.0"
+version = "2.11.1"
 
 [[deps.Unitful]]
 deps = ["ConstructionBase", "Dates", "LinearAlgebra", "Random"]
@@ -1972,9 +2024,9 @@ version = "1.3.0"
 
 [[deps.WeakRefStrings]]
 deps = ["DataAPI", "InlineStrings", "Parsers"]
-git-tree-sha1 = "c69f9da3ff2f4f02e811c3323c22e5dfcb584cfa"
+git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
 uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
-version = "1.4.1"
+version = "1.4.2"
 
 [[deps.WebIO]]
 deps = ["AssetRegistry", "Base64", "Distributed", "FunctionalCollections", "JSON", "Logging", "Observables", "Pkg", "Random", "Requires", "Sockets", "UUIDs", "WebSockets", "Widgets"]
@@ -2008,9 +2060,9 @@ version = "0.5.5"
 
 [[deps.XLSX]]
 deps = ["Dates", "EzXML", "Printf", "Tables", "ZipFile"]
-git-tree-sha1 = "2af4b3e329b51f1a41acb346e64156f904860a74"
+git-tree-sha1 = "7fa8618da5c27fdab2ceebdff1da8918c8cd8b5d"
 uuid = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
-version = "0.7.9"
+version = "0.7.10"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
@@ -2164,7 +2216,7 @@ version = "3.5.0+0"
 # ╟─65d00bf6-8f9a-40b4-947a-fd46ddc89753
 # ╠═acc685f9-7ae8-483d-982e-ff45ccd9e860
 # ╟─b8126c39-8c6c-490d-9992-8922e88f8857
-# ╠═a0476d0d-64d9-4457-b78d-41519e38e859
+# ╟─a0476d0d-64d9-4457-b78d-41519e38e859
 # ╟─ae00e44e-d864-4d04-b2e8-fac510ce44bb
 # ╟─8419c830-8e35-493b-91b2-adfc97e30a61
 # ╠═ae4f7b8f-085e-4997-ae0c-4e3f38d1cee4
@@ -2176,13 +2228,14 @@ version = "3.5.0+0"
 # ╠═f6d13a95-ddfc-415f-9c83-25a1912728e6
 # ╟─87cc52dd-9878-422d-a10e-d491db2a04c6
 # ╟─8294a065-5285-4221-8553-e38ca23257f2
-# ╠═3e27bc15-9d80-424b-b3c9-a0690a9dc849
+# ╟─3e27bc15-9d80-424b-b3c9-a0690a9dc849
 # ╟─12497dfb-87ff-4978-801a-c78cd118b032
 # ╟─84a4b3b4-23d8-4b12-9204-110d3ba4724b
 # ╟─1adfa147-c980-48c7-a84d-03847ffa8e6a
 # ╟─b2958ece-3a4c-497e-88e3-afc45d8f3688
 # ╟─22ec1978-aaee-4fa1-b739-1246a6aeda20
+# ╟─e56f829e-4b83-457a-8e90-a08e071cd5f3
 # ╟─30a52bf1-ff77-4f9b-a87a-e9dd8ad0c1c4
-# ╠═ac330756-f1ac-431c-9e60-7d346e06aa1f
+# ╟─ac330756-f1ac-431c-9e60-7d346e06aa1f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
