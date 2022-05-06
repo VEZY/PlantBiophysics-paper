@@ -28,6 +28,8 @@ jobs:
     - uses: julia-actions/setup-julia@v1
     - uses: julia-actions/cache@v1
     - uses: julia-actions/julia-buildpkg@v1
+      env:
+        PYTHON: ""
 
     - name: Build notebooks
       run: julia --project -e 'using Tutorials; build_tutorials()'
