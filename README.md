@@ -5,8 +5,10 @@ This repository automatically makes a website from these notebooks using Github 
 The website is available here: https://vezy.github.io/PlantBiophysics-paper/
 
 ## To do list:
-- [ ] Figure global data with PB.jl only
-- [ ] Figure global data with all packages
+- [x] Figure global data with PB.jl only
+- [x] Figure global data with all packages
 - [x] Day figure with PB.jl scalar
-- [ ] Day figure with PB.jl uncertainty propagation
+- [x] Day figure with PB.jl uncertainty propagation
 - [x] Performance figure
+- [ ] Make Pluto notebook for global data
+- [ ] Adapt Pluto notebook for day evaluation with Makie
