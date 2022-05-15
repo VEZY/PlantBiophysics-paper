@@ -11,7 +11,6 @@ using Statistics
 using Revise
 constants = Constants()
 using CairoMakie
-set_aog_theme!()
 using Dates
 using MonteCarloMeasurements
 unsafe_comparisons(true)
@@ -23,13 +22,13 @@ using Makie
 path = "/Users/simon/Code/PlantBiophysics-paper/data/"
 
 # Did you already have fitted the parameters ?
-fitted = true
+fitted = false
 
 # Do you want to save the simulations ?
-saving_simulations = true
+saving_simulations = false
 
 # Do you want to save the figure ?
-saving_figure = true
+saving_figure = false
 
 function RMSE(obs,sim)
     return sqrt(sum((obs .- sim).^2)/length(obs))
@@ -76,7 +75,7 @@ if !fitted
 
         dfiPE = dfi[:,3:end]
         P = mean(dfi.P)
-        rename!(dfiPE, :Tₗ=>:Tleaf, :Cᵢ=>:Ci, :Cₐ=>:Ca)
+        rename!(dfiPE, :Tₗ=>:Tleaf, :Cᵢ=>:Ci, :Cₐ=>:Ca, :Gₛ=>:gs)
         @rput P
         @rput dfiPE
         R"""
@@ -112,14 +111,14 @@ if !fitted
         @rget coefs
         dfi = filter(x -> x.Curve == i, df)
         dfiPE = dfi[:,3:end]
-        rename!(dfiPE, :Tₗ=>:Tleaf, :Cᵢ=>:Ci, :Cₐ=>:Ca)
+        rename!(dfiPE, :Tₗ=>:Tleaf, :Cᵢ=>:Ci, :Cₐ=>:Ca, :Gₛ=>:gs, :Dₗ=>:VpdL)
         filter!(x->x.A ./ (x.Ca)>0.,dfiPE)
         @rput dfiPE
         R"""
         dfiPE$Rh = dfiPE$Rh*100
         myfit = fitBB(
             dfiPE,
-            varnames = list(ALEAF = "A", GS = "gs", VPD = "VPD", Ca = "Ca", RH = "Rh"),
+            varnames = list(ALEAF = "A", GS = "gs", VPD = "VpdL", Ca = "Ca", RH = "Rh"),
             gsmodel = c("BBOpti"),
             fitg0 = TRUE,
             D0 = NULL
@@ -138,7 +137,6 @@ if !fitted
         df.g0PE[df.Curve.==i] .= gP[1]
         df.g1PE[df.Curve.==i] .= gP[2]
     end
-    df.g1PE[df.Curve.==48][1]
     CSV.write(path*"../tutorials/Medlyn_ACis_param.csv",df)
 
 else
@@ -278,7 +276,7 @@ end
 df.AsimPE .= A_sim
 df.EsimPE .= E_sim
 df.TlsimPE .= Tl_sim
-df.GssimPE .= Gs_sim ./1.57
+df.GssimPE .= Gs_sim
 df.PEfailed .= failed
 
 if saving_simulations
@@ -373,16 +371,16 @@ filter!(x->x!=9999.,indexPE)
 axc = Axis(fig[2,2],title="(c) CO₂ stomatal conductance Gₛ")
 
 
-RMSLG=round(RMSE(df.gs[index],df.GssimLG[index]),digits=3)
-RMSPB=round(RMSE(df.gs[index],df.GssimPB[index]),digits=3)
-RMSPE=round(RMSE(df.gs[indexPE],df.GssimPE[indexPE]),digits=3)
-EF(df.gs[index],df.GssimPB[index])
-EF(df.gs[index],df.GssimLG[index])
-EF(df.gs[indexPE],df.GssimPE[indexPE])
+RMSLG=round(RMSE(df.Gₛ[index],df.GssimLG[index]),digits=3)
+RMSPB=round(RMSE(df.Gₛ[index],df.GssimPB[index]),digits=3)
+RMSPE=round(RMSE(df.Gₛ[indexPE],df.GssimPE[indexPE]),digits=3)
+EF(df.Gₛ[index],df.GssimPB[index])
+EF(df.Gₛ[index],df.GssimLG[index])
+EF(df.Gₛ[indexPE],df.GssimPE[indexPE])
 Makie.lines!(axc,df.GssimPB,df.GssimPB,linewidth=4,color=(:grey,0.4))
-LG = Makie.scatter!(axc,df.gs[index],df.GssimLG[index],color=(:black,0.5),markersize=8,marker='□')
-PE = Makie.scatter!(axc,df.gs[indexPE],df.GssimPE[indexPE],color=(:blue,0.5),markersize=8,marker='∆')
-PB = Makie.scatter!(axc,df.gs[index],df.GssimPB[index],color=(:red,0.8),markersize=8,marker='o')
+LG = Makie.scatter!(axc,df.Gₛ[index],df.GssimLG[index],color=(:black,0.5),markersize=8,marker='□')
+PE = Makie.scatter!(axc,df.Gₛ[indexPE],df.GssimPE[indexPE],color=(:blue,0.5),markersize=8,marker='∆')
+PB = Makie.scatter!(axc,df.Gₛ[index],df.GssimPB[index],color=(:red,0.8),markersize=8,marker='o')
 Makie.ylims!(axc,(0.,0.4))
 Makie.xlims!(axc,(0.,0.4))
 axislegend(axc, [PB,PE,LG], ["PlantBiophysics.jl (RMSE="*string(RMSPB)*")","plantecophys (RMSE="*string(RMSPE)*")","LeafGasExchange.jl (RMSE="*string(RMSLG)*")"], "", position = :rb,
