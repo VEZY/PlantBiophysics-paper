@@ -39,7 +39,8 @@ function build_notebooks()
     pluto_notebooks = copy(files)
     for i in eachindex(files)
         first_line = readline(files[i])
-        first_line != "### A Pluto.jl notebook ###" && deleteat!(pluto_notebooks, i)
+        j=findall(x->x==files[i],pluto_notebooks)
+        first_line != "### A Pluto.jl notebook ###" && deleteat!(pluto_notebooks, j)
     end
 
     bopts = BuildOptions(dir; output_format, previous_dir)
