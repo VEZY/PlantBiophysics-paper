@@ -20,25 +20,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
-      - uses: r-lib/actions/setup-r@master
-      - name: Install R dependencies
-        run: |
-          install.packages(c("readr", "dplyr","plantecophys","microbenchmark"))
-        shell: Rscript {0}
-      - name: Set up 🐍
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - name: Set ENV Variables for 🐍 📞
-        run: |
-          echo ENV["PYTHON"] = python >> $GITHUB_ENV
       - uses: julia-actions/setup-julia@v1
-        env:
-          PYTHON: python
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
-        env:
-          PYTHON: python
 
       - name: Build notebooks
         run: julia --project -e 'using Tutorials; build_tutorials()'
@@ -46,7 +30,6 @@ jobs:
           JULIA_NUM_THREADS: "2"
           DISABLE_CACHE: "${{ github.event.inputs.disableCache }}"
           REPO: "${{ github.repository }}"
-          PYTHON: python
 
       - name: Build site
         run: julia --project -e '
