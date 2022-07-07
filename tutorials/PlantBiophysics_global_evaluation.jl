@@ -4,35 +4,11 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 1609ce3c-4066-45ca-acce-8dbf081bfb89
-begin
-	using DataFrames
-	using Plots
-	using RCall
-	using CSV
-	using PlantBiophysics
-	using Statistics
-	using Revise
-	constants = Constants()
-	using Makie
-	using WGLMakie
-	using Dates
-	using MonteCarloMeasurements
-	unsafe_comparisons(true)
-	using LeafGasExchange
-	using Cropbox
-end
-
 # ╔═╡ 1100f4ba-d45e-11ec-25f5-b79c9d3b9851
 md"# Global simulation with _PlantBiophysics.jl_
 
-This Pluto notebook computes the Fig. .. from PlantBiophysics.jl paper. You can run the fitting and simulation parts in a classic Julia file apart.
+This Pluto notebook computes the Fig. .. from PlantBiophysics.jl paper. You can run the fitting and simulation parts in a classic Julia file apart. If you did so, make sure that `fitted` and `simulated` are set to `true`. 
 "
-
-# ╔═╡ c2e2c3c8-288c-491a-a8c7-8adf4517103c
-md"""
-## Global simulation parameters
-"""
 
 # ╔═╡ f3e741d1-ba01-4ec1-9cdb-f61611679d17
 begin
@@ -40,6 +16,34 @@ begin
 	fitted=true
 	simulated=true
 end
+
+# ╔═╡ 1609ce3c-4066-45ca-acce-8dbf081bfb89
+begin
+	using DataFrames
+	using Plots
+	using CSV
+	using Statistics
+	using Revise
+	using Makie
+	using WGLMakie
+	using Dates
+	using MonteCarloMeasurements
+	unsafe_comparisons(true)
+	if !(simulated & fitted)
+		using RCall
+		using PlantBiophysics
+		constants = Constants()
+	end
+	if !simulated
+		using LeafGasExchange
+		using Cropbox
+	end
+end
+
+# ╔═╡ c2e2c3c8-288c-491a-a8c7-8adf4517103c
+md"""
+## Global simulation parameters
+"""
 
 # ╔═╡ 98dcfd9e-e85f-4b38-a546-e9932c7360b0
 begin
@@ -2496,9 +2500,9 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╟─1100f4ba-d45e-11ec-25f5-b79c9d3b9851
+# ╠═f3e741d1-ba01-4ec1-9cdb-f61611679d17
 # ╠═1609ce3c-4066-45ca-acce-8dbf081bfb89
 # ╟─c2e2c3c8-288c-491a-a8c7-8adf4517103c
-# ╠═f3e741d1-ba01-4ec1-9cdb-f61611679d17
 # ╠═98dcfd9e-e85f-4b38-a546-e9932c7360b0
 # ╟─e8961d19-85d4-484b-a029-359a9dbea800
 # ╠═f9be64a3-b788-48d8-a925-5954e532effb
