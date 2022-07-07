@@ -31,21 +31,13 @@ function prev_dir()::Union{Nothing,AbstractString}
 end
 
 "Build all the notebooks in parallel."
-function build_notebooks()
+function build()
     dir = TUTORIALS_DIR
     output_format = franklin_output
     previous_dir = prev_dir()
-    files = filter(x -> endswith(x, ".jl"), readdir(Tutorials.TUTORIALS_DIR, join=true))
-    pluto_notebooks = copy(files)
-    for i in eachindex(files)
-        first_line = readline(files[i])
-        j=findall(x->x==files[i],pluto_notebooks)
-        first_line != "### A Pluto.jl notebook ###" && deleteat!(pluto_notebooks, j)
-    end
-
     bopts = BuildOptions(dir; output_format, previous_dir)
     hopts = HTMLOptions(; append_build_context=true)
-    parallel_build(bopts, pluto_notebooks, hopts)
+    build_notebooks(bopts, hopts)
     return nothing
 end
 
@@ -85,10 +77,11 @@ end
 
 "Build the tutorials."
 function build_tutorials()
-    build_notebooks()
+    build()
     # Copy the Markdown first or the appended notebook links will add up.
     copy_markdown_files()
     append_notebook_links()
 end
+precompile(build_tutorials, ())
 
 end # module
