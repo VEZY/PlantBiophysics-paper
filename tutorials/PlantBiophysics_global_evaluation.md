@@ -1,0 +1,784 @@
+~~~
+<!-- PlutoStaticHTML.Begin -->
+<!--
+    # This information is used for caching.
+    [PlutoStaticHTML.State]
+    input_sha = "c01e90dd68f22b51e27825876db782709cdd02893c9c89b53e99d7cefa8cb055"
+    julia_version = "1.7.3"
+-->
+
+<div class="markdown"><h1>Global simulation with <em>PlantBiophysics.jl</em></h1>
+<p>This Pluto notebook computes the Fig. .. from PlantBiophysics.jl paper. You can run the fitting and simulation parts in a classic Julia file apart. If you did so, make sure that <code>fitted</code> and <code>simulated</code> are set to <code>true</code>. </p>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    path="../data/"
+    fitted=true
+    simulated=true
+end</code></pre>
+<pre id='var-fitted' class='code-output documenter-example-output'>true</pre>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    using DataFrames
+    using Plots
+    using CSV
+    using Statistics
+    using Revise
+    using Makie
+    using WGLMakie
+    using Dates
+    using MonteCarloMeasurements
+    unsafe_comparisons(true)
+    if !(simulated & fitted)
+        using RCall
+        using PlantBiophysics
+        constants = Constants()
+    end
+    if !simulated
+        using LeafGasExchange
+        using Cropbox
+    end
+end</code></pre>
+
+
+
+<div class="markdown"><h2>Global simulation parameters</h2>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    function RMSE(obs,sim)
+        return sqrt(sum((obs .- sim).^2)/length(obs))
+    end
+    
+    function EF(obs,sim)
+        SSres = sum((obs - sim).^2)
+        SStot = sum((obs .- mean(obs)).^2)
+        return 1-SSres/SStot
+    end
+    
+    # Loading R packages
+    #R"""
+    #library(plantecophys)
+    #library(dplyr)
+    #library(readr)
+    #library(microbenchmark)
+    #"""
+
+end</code></pre>
+<pre id='var-RMSE' class='code-output documenter-example-output'>EF (generic function with 1 method)</pre>
+
+
+<div class="markdown"><h2>Fitting</h2>
+<p>Photosynthesis and stomatal conductance parameters are fitted using plantecophys for plantecophys and LeafGasExchange.jl packages, and with own fitting module for PlantBiophysics.jl.</p>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    if !fitted
+    	dfParam = read_licor6400(path*"TumbarumbaGasex_ACis_Medlyn.csv")
+        dfParam.Date = Date.(dfParam.Date, Dates.DateFormat("yyyy/mm/dd"))
+    
+        dfParam.VcMaxRef .= dfParam.JMaxRef .= dfParam.RdRef .= dfParam.TPURef .= dfParam.g0 .= dfParam.g1 .= 0.
+        dfParam.VcMaxRefPE .= dfParam.JMaxRefPE .= dfParam.RdRefPE .= dfParam.TPURefPE .= dfParam.g0PE .= dfParam.g1PE .= 0.
+        for i in unique(dfParam.Curve)
+            dfi = filter(x -&gt; x.Curve == i, dfParam)
+            sort!(dfi,:Cᵢ)
+    
+            g0,g1 = PlantBiophysics.fit(Medlyn,dfi)
+            dfParam.g0[dfParam.Curve.==i] .= g0
+            dfParam.g1[dfParam.Curve.==i] .= g1
+    
+            filter!(x-&gt;x.PPFD &gt; 1400., dfi)
+    
+            VcMaxRef,JMaxRef,RdRef,TPURef = PlantBiophysics.fit(Fvcb,dfi)
+            df.VcMaxRef[df.Curve.==i] .= VcMaxRef
+            df.JMaxRef[df.Curve.==i] .= JMaxRef
+            df.RdRef[df.Curve.==i] .= RdRef
+            df.TPURef[df.Curve.==i] .= TPURef
+    
+            dfiPE = dfi[:,3:end]
+            P = mean(dfi.P)
+            rename!(dfiPE, :Tₗ=&gt;:Tleaf, :Cᵢ=&gt;:Ci, :Cₐ=&gt;:Ca, :Gₛ=&gt;:gs)
+            @rput P
+            @rput dfiPE
+            R"""
+            fit = fitaci(
+                dfiPE,
+                varnames = list(ALEAF = "A", Tleaf = "Tleaf", Ci = "Ci", PPFD = "PPFD"),
+                Tcorrect = TRUE,
+                Patm = P,
+                citransition = NULL,
+                quiet = TRUE,
+                startValgrid = TRUE,
+                fitmethod = "bilinear",
+                algorithm = "nls",
+                fitTPU = TRUE,
+                alphag = 0,
+                useRd = FALSE,
+                PPFD = dfiPE$PPFD,
+                Tleaf = dfiPE$Tleaf,
+                alpha = 0.24,
+                theta = 0.7,
+                gmeso = NULL,
+                EaV = 58550.0,
+                EdVC = 2e+05,
+                delsC = 629.26,
+                EaJ = 29680.0,
+                EdVJ = 2e+05,
+                delsJ = 631.88,
+                #GammaStar = NULL,
+                #Km = NULL,
+                id = NULL)
+            coefs = coef(fit)
+            """
+            @rget coefs
+            dfi = filter(x -&gt; x.Curve == i, df)
+            dfiPE = dfi[:,3:end]
+            rename!(dfiPE, :Tₗ=&gt;:Tleaf, :Cᵢ=&gt;:Ci, :Cₐ=&gt;:Ca, :Gₛ=&gt;:gs, :Dₗ=&gt;:VpdL)
+            filter!(x-&gt;x.A ./ (x.Ca)&gt;0.,dfiPE)
+            @rput dfiPE
+            R"""
+            dfiPE$Rh = dfiPE$Rh*100
+            myfit = fitBB(
+                dfiPE,
+                varnames = list(ALEAF = "A", GS = "gs", VPD = "VpdL", Ca = "Ca", RH = "Rh"),
+                gsmodel = c("BBOpti"),
+                fitg0 = TRUE,
+                D0 = NULL
+                )
+            gP = coef(myfit)
+            """
+            @rget gP
+            dfParam.VcMaxRefPE[dfParam.Curve.==i] .= coefs[1]
+            dfParam.JMaxRefPE[dfParam.Curve.==i] .= coefs[2]
+            dfParam.RdRefPE[dfParam.Curve.==i] .= coefs[3]
+            if !ismissing(coefs[4])
+                dfParam.TPURefPE[dfParam.Curve.==i] .= coefs[4]
+            else
+                dfParam.TPURefPE[dfParam.Curve.==i] .= 1000000.
+            end
+            dfParam.g0PE[dfParam.Curve.==i] .= gP[1]
+            dfParam.g1PE[dfParam.Curve.==i] .= gP[2]
+        end
+        CSV.write(path*"../tutorials/Medlyn_ACis_param.csv",dfParam)
+    
+    else
+        dfParam  = CSV.File(path*"../tutorials/Medlyn_ACis_param.csv", dateformat="yyyy/mm/dd") |&gt; DataFrame
+    end
+end</code></pre>
+<table>
+<tr>
+<th></th>
+<th>Date</th>
+<th>Time</th>
+<th>Curve</th>
+<th>Qflag</th>
+<th>Site</th>
+<th>Leaf Age</th>
+<th>Chl a+b</th>
+<th>Na</th>
+<th>...</th>
+</tr>
+<tr>
+<td>1</td>
+<td>"2001-11-14"</td>
+<td>"09:38:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td>"2001-11-14"</td>
+<td>"09:40:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>"2001-11-14"</td>
+<td>"09:42:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td>"2001-11-14"</td>
+<td>"09:44:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>"2001-11-14"</td>
+<td>"09:48:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>"2001-11-14"</td>
+<td>"09:50:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td>"2001-11-14"</td>
+<td>"09:52:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td>"2001-11-14"</td>
+<td>"09:54:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>"2001-11-14"</td>
+<td>"09:56:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td>"2001-11-14"</td>
+<td>"09:58:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>...</td>
+</tr>
+<tr>
+<td>672</td>
+<td>"2002-05-10"</td>
+<td>"15:12:00.0"</td>
+<td>48</td>
+<td>1</td>
+<td>5</td>
+<td>1</td>
+<td>"487.6722449"</td>
+<td>2.20796</td>
+<td></td>
+</tr>
+</table>
+
+
+
+<div class="markdown"><h2>Simulating</h2>
+<p>Here we set wind velocity to 20 m/s &#40;the Licor6400 chamber is well ventilated&#41; and the characteristic length to the square root of the chamber area in <span class="tex">$m^2$</span>.</p>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    d = sqrt(df.Area[1])/100
+    Wind = 20.
+    #@rput Wind
+    #@rput d
+end</code></pre>
+<pre id='var-d' class='code-output documenter-example-output'>20.0</pre>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    if simulated
+        df = CSV.File(path*"../tutorials/Medlyn_ACis_simulations.csv", dateformat="yyyy/mm/dd") |&gt; DataFrame
+    end
+end</code></pre>
+<table>
+<tr>
+<th></th>
+<th>Date</th>
+<th>Time</th>
+<th>Curve</th>
+<th>Qflag</th>
+<th>Site</th>
+<th>Leaf Age</th>
+<th>Chl a+b</th>
+<th>Na</th>
+<th>...</th>
+</tr>
+<tr>
+<td>1</td>
+<td>"2001-11-14"</td>
+<td>"09:38:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td>"2001-11-14"</td>
+<td>"09:40:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>"2001-11-14"</td>
+<td>"09:42:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td>"2001-11-14"</td>
+<td>"09:44:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>"2001-11-14"</td>
+<td>"09:48:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>"2001-11-14"</td>
+<td>"09:50:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td>"2001-11-14"</td>
+<td>"09:52:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td>"2001-11-14"</td>
+<td>"09:54:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>"2001-11-14"</td>
+<td>"09:56:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td>"2001-11-14"</td>
+<td>"09:58:00.0"</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>0</td>
+<td>"434.0988776"</td>
+<td>2.42908</td>
+<td></td>
+</tr>
+<tr>
+<td>...</td>
+</tr>
+<tr>
+<td>672</td>
+<td>"2002-05-10"</td>
+<td>"15:12:00.0"</td>
+<td>48</td>
+<td>1</td>
+<td>5</td>
+<td>1</td>
+<td>"487.6722449"</td>
+<td>2.20796</td>
+<td></td>
+</tr>
+</table>
+
+
+
+<div class="markdown"><h3>With PlantBiophysics.jl</h3>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    if !simulated		
+        df.AsimPB .= df.EsimPB .= df.TlsimPB .= df.GssimPB .= 0.
+        for i in unique(df.Curve)
+            dfi = filter(x-&gt;x.Curve == i,df)
+        
+            cols = fieldnames(Atmosphere)
+            dfiMeteo = select(dfi, names(dfi, x -&gt; Symbol(x) in cols))
+            dfiMeteo.Wind .= Wind
+            # Note that as we only use A-Ci curves, there is no NIR in the Licor6400 
+            dfiMeteo.Ri_SW_f .= dfi.PPFD ./ (4.57)
+            meteo = Weather(dfiMeteo)
+        
+            leaf = LeafModels(
+                    energy = Monteith(aₛₕ = 2, aₛᵥ = 1,ε = 0.955 ,maxiter=100),
+                    photosynthesis = Fvcb(VcMaxRef = dfi.VcMaxRef[1], JMaxRef = dfi.JMaxRef[1], RdRef = dfi.RdRef[1], TPURef = dfi.TPURef[1]),
+                    stomatal_conductance = Medlyn(dfi.g0[1], dfi.g1[1]),
+                    Rₛ = meteo[:Ri_SW_f],
+                    sky_fraction = 1.0,
+                    PPFD = dfi.PPFD,
+                    d = d
+            )
+        
+            energy_balance!(leaf,meteo)
+            df.AsimPB[df.Curve .== i, :] = DataFrame(leaf).A
+            df.EsimPB[df.Curve .== i, :] = DataFrame(leaf).λE ./(meteo[:λ] * constants.Mₕ₂ₒ)*1000
+            df.TlsimPB[df.Curve .== i, :] = DataFrame(leaf).Tₗ
+            df.GssimPB[df.Curve .== i, :] = DataFrame(leaf).Gₛ
+        end
+    end
+end</code></pre>
+
+
+
+<div class="markdown"><h3>With plantecophys</h3>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    if !simulated
+                
+        R"""
+        A_sim = c()
+        E_sim = c()
+        Tl_sim = c()
+        Gs_sim = c()
+        failed =c()
+        """
+
+        df.AsimPE .= df.EsimPE .= df.TlsimPE .= df.GssimPE .= df.PEfailed .= 0.
+        for i in unique(df.Curve)
+            dfi = filter(x-&gt;x.Curve == i,df)
+            dfi = dfi[:,3:end]
+            @rput dfi
+            Ca = dfi.Cₐ
+            @rput Ca
+            R"""
+            VcMaxRef = dfi$VcMaxRefPE[1]
+            JMaxRef = dfi$JMaxRefPE[1]
+            TPURef = dfi$TPURefPE[1]
+            RdRef = dfi$RdRefPE[1]
+            g0 = dfi$g0PE[1]
+            g1 = dfi$g1PE[1]
+            res = PhotosynEB(Tair = dfi$T,Wind = Wind,VPD=dfi$VPD,
+                     Wleaf = d,Ca = Ca,  StomatalRatio = 1,
+                     LeafAbs = 1.,gsmodel = "BBOpti",g0 = g0, g1 = g1,
+                     EaV = 58550.0,EdVC = 2e+05, delsC = 629.26,
+                     EaJ = 29680.0,EdVJ = 2e+05,delsJ = 631.88,
+                     alpha = 0.24,theta = 0.7, Jmax = JMaxRef, 
+                     Vcmax = VcMaxRef, TPU = TPURef,Rd = RdRef,
+                     RH = dfi$Rh*100,PPFD=dfi$PPFD,
+                     Patm = dfi$P,gk=0.,
+                     Tcorrect = FALSE)
+            A_sim = append(A_sim,res$ALEAF)
+            Gs_sim = append(Gs_sim,res$GS)
+            failed = append(failed,res$failed)
+            Tl_sim = append(Tl_sim,res$Tleaf)
+            E_sim = append(E_sim,res$ELEAF)
+            """
+        end
+        @rget A_sim
+        
+        @rget failed
+        @rget Gs_sim
+        @rget E_sim
+        @rget Tl_sim
+        
+        df.AsimPE .= A_sim
+        df.EsimPE .= E_sim
+        df.TlsimPE .= Tl_sim
+        df.GssimPE .= Gs_sim
+        df.PEfailed .= failed
+    end
+end</code></pre>
+
+
+
+<div class="markdown"><h3>With LeafGasExchange.jl</h3>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    if !simulated
+        df.AsimLG .= df.EsimLG .= df.TlsimLG .= df.GssimLG .= 0.
+        for i in unique(df.Curve)
+            dfi = filter(x-&gt;x.Curve == i,df)
+            #dfi = filter(x-&gt;x.PPFD &gt; 1400.,dfi)
+            #dfi = filter(x-&gt;x.Cₐ &gt; 150.,dfi)
+        
+            configs = []
+            for i in 1:length(dfi.T)
+                config = :Weather =&gt; (
+                        PFD = dfi.PPFD[i],
+                        CO2 = dfi.Cₐ[i],
+                        RH = dfi.Rh[i] * 100,
+                        T_air = dfi.T[i],
+                        wind = Wind,
+                        P_air = dfi.P[i],
+                        g0 = dfi.g0PE[i],
+                        g1 = 1.57*dfi.g1PE[i],
+                        Vc25 = dfi.VcMaxRefPE[i],
+                        Jm25 = dfi.JMaxRefPE[i],
+                        Rd25 = dfi.RdRefPE[i],
+                        Tp25 = dfi.TPURefPE[i],
+                        Ear = 46.39,
+                        Haj = 29.68,
+                        w = d,
+                        d = d,
+                        EaVc = 58.55,
+                        ϵ = 0.955,
+                        Dh = 21.5
+                )
+                push!(configs,config)
+            end
+            res = simulate(ModelC3MD;configs=configs,nounit=true)
+            df.AsimLG[df.Curve .== i, :] = res.A_net
+            df.EsimLG[df.Curve .== i, :] = res.E
+            df.TlsimLG[df.Curve .== i, :] = res.T
+            df.GssimLG[df.Curve .== i, :] = res.gsc
+        end
+    end
+end</code></pre>
+
+
+
+<div class="markdown"><h2>Plotting</h2>
+<p>Plotting <span class="tex">$E$</span>, <span class="tex">$A_s$</span>, <span class="tex">$T_l$</span> and <span class="tex">$G_s$</span> using Makie.</p>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
+    fig = Makie.Figure(backgroundcolor = RGBf(1, 1, 1),resolution = (1000, 1000),font=noto_sans,dpi=600,size=(600,600),xminorgridstyle=true)
+    sideinfo1 = Label(fig[1:2, 0], "Simulations", rotation = pi/2,labelsize=25)
+    sideinfo2 = Label(fig[3,2:3], "Observations")
+    n=" "
+end</code></pre>
+<pre id='var-fig' class='code-output documenter-example-output'>" "</pre>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    ########################################################################
+    # Assimilation 
+    axa = Axis(fig[1,2],title="(a) Net CO₂ assimilation Aₙ")
+    indexA = 1:length(df.PPFD)
+    indexA = ifelse.(df.PPFD .&gt; 1400, indexA, 9999.)
+    filter!(x-&gt;x!=9999.,indexA)
+    indexPEA = 1:length(df.PPFD)
+    indexPEA = ifelse.((df.PPFD .&gt; 1400).&(df.PEfailed .==0.), indexPEA, 9999.)
+    filter!(x-&gt;x!=9999.,indexPEA)
+    RMSEA=DataFrame("RMSPB"=&gt;round(RMSE(df.A[indexA],df.AsimPB[indexA]),digits=3),"RMSLG"=&gt;round(RMSE(df.A[indexA],df.AsimLG[indexA]),digits=3),"RMSPE"=&gt;round(RMSE(df.A[indexPEA],df.AsimPE[indexPEA]),digits=3))
+    EFA=DataFrame("EFPB"=&gt;EF(df.A[indexA],df.AsimPB[indexA]),"EFLG"=&gt;EF(df.A[indexA],df.AsimLG[indexA]),"EFPE"=&gt;EF(df.A[indexPEA],df.AsimPE[indexPEA]))
+    Makie.lines!(axa,df.AsimPB[indexA],df.AsimPB[indexA],color=(:grey,0.4),linewidth=4)
+    LGA = Makie.scatter!(axa,df.A[indexA],df.AsimLG[indexA],color=(:black,0.5),markersize=8,marker='□')
+    PEA = Makie.scatter!(axa,df.A[indexPEA],df.AsimPE[indexPEA],color=(:blue,0.5),markersize=8,marker='∆')
+    PBA = Makie.scatter!(axa,df.A[indexA],df.AsimPB[indexA],color=(:red,0.8),markersize=8,marker='o')
+    axislegend(axa, [PBA,PEA,LGA], ["PlantBiophysics.jl (RMSE="*string(RMSEA.RMSPB)*")","plantecophys (RMSE="*string(RMSEA.RMSPE)*")","LeafGasExchange.jl (RMSE="*string(RMSEA.RMSLG)*")"], "", position = :rb,
+        orientation = :vertical,labelsize=13)
+end</code></pre>
+<pre id='var-indexPEA' class='code-output documenter-example-output'>Makie.MakieLayout.Legend()</pre>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    ########################################################################
+    # Transpiration 
+    indexE = 1:length(df.PPFD)
+    indexE = ifelse.(df.Cₐ .&gt; 140., indexE, 9999.)
+    filter!(x-&gt;x!=9999.,indexE)
+    indexPEE = 1:length(df.PPFD)
+    indexPEE = ifelse.((df.Cₐ .&gt; 140.).&(df.PEfailed .==0.), indexPEE, 9999.)
+    filter!(x-&gt;x!=9999.,indexPEE)
+    
+    axb = Axis(fig[1,3],title="(b) Transpiration rate E")
+    
+    RMSEE=DataFrame("RMSPB"=&gt;round(RMSE(df.Trmmol[indexE],df.EsimPB[indexE]),digits=3),"RMSLG"=&gt;round(RMSE(df.Trmmol[indexE],df.EsimLG[indexE]),digits=3),"RMSPE"=&gt;round(RMSE(df.Trmmol[indexPEE],df.EsimPE[indexPEE]),digits=3))
+    EFE=DataFrame("EFPB"=&gt;EF(df.Trmmol[indexE],df.EsimPB[indexE]),"EFLG"=&gt;EF(df.Trmmol[indexE],df.EsimLG[indexE]),"EFPE"=&gt;EF(df.Trmmol[indexPEE],df.EsimPE[indexPEE]))
+    Makie.lines!(axb,df.EsimPB[indexE],df.EsimPB[indexE],linewidth=4,color=(:grey,0.4))
+    LGE = Makie.scatter!(axb,df.Trmmol[indexE],df.EsimLG[indexE],color=(:black,0.5),markersize=8,marker='□')
+    PEE = Makie.scatter!(axb,df.Trmmol[indexPEE],df.EsimPE[indexPEE],color=(:blue,0.5),markersize=8,marker='∆')
+    PBE = Makie.scatter!(axb,df.Trmmol[indexE],df.EsimPB[indexE],color=(:red,0.8),markersize=8,marker='o')
+    axislegend(axb, [PBE,PEE,LGE], ["PlantBiophysics.jl (RMSE="*string(RMSEE.RMSPB)*")","plantecophys (RMSE="*string(RMSEE.RMSPE)*")","LeafGasExchange.jl (RMSE="*string(RMSEE.RMSLG)*")"], "", position = :rb,
+        orientation = :vertical,labelsize=13)
+end</code></pre>
+<pre id='var-EFE' class='code-output documenter-example-output'>Makie.MakieLayout.Legend()</pre>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    ########################################################################
+    # Leaf temperature
+    indexPEL = 1:length(df.PPFD)
+    indexPEL = ifelse.((df.PEfailed .==0.), indexPEL, 9999.)
+    filter!(x-&gt;x!=9999.,indexPEL)
+    
+    axd = Axis(fig[2,3],title="(d) Leaf temperature Tₗ")
+    
+    RMSEL=DataFrame("RMSPB"=&gt;round(RMSE(df.Tₗ,df.TlsimPB),digits=3),"RMSLG"=&gt;round(RMSE(df.Tₗ,df.TlsimLG),digits=3),"RMSPE"=&gt;round(RMSE(df.Tₗ[indexPEL],df.TlsimPE[indexPEL]),digits=3))
+    EFL=DataFrame("EFPB"=&gt;EF(df.Tₗ,df.TlsimPB),"EFLG"=&gt;EF(df.Tₗ,df.TlsimLG),"EFPE"=&gt;EF(df.Tₗ[indexPEL],df.TlsimPE[indexPEL]))
+    Makie.lines!(axd,df.TlsimPB,df.TlsimPB,linewidth=4,color=(:grey,0.4))
+    LGL = Makie.scatter!(axd,df.Tₗ,df.TlsimLG,color=(:black,0.5),markersize=8,marker='□')
+    PEL = Makie.scatter!(axd,df.Tₗ[indexPEL],df.TlsimPE[indexPEL],color=(:blue,0.5),markersize=8,marker='∆')
+    PBL = Makie.scatter!(axd,df.Tₗ,df.TlsimPB,color=(:red,0.8),markersize=8,marker='o')
+    axislegend(axd, [PBL,PEL,LGL], ["PlantBiophysics.jl (RMSE="*string(RMSEL.RMSPB)*")","plantecophys (RMSE="*string(RMSEL.RMSPE)*")","LeafGasExchange.jl (RMSE="*string(RMSEL.RMSLG)*")"], "", position = :rb,
+        orientation = :vertical,labelsize=13)
+end</code></pre>
+<pre id='var-EFL' class='code-output documenter-example-output'>Makie.MakieLayout.Legend()</pre>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    ########################################################################
+    # Stomatal conductance
+    index = 1:length(df.PPFD)
+    index = ifelse.(df.Cₐ .&gt; 140., index, 9999.)
+    filter!(x-&gt;x!=9999.,index)
+    indexPE = 1:length(df.PPFD)
+    indexPE = ifelse.((df.Cₐ .&gt; 140.).&(df.PEfailed .==0.), indexPE, 9999.)
+    filter!(x-&gt;x!=9999.,indexPE)
+    axc = Axis(fig[2,2],title="(c) CO₂ stomatal conductance Gₛ")
+    
+
+    # Homogenize Gs after
+    RMSLG=round(RMSE(df.gs[index],df.GssimLG[index]),digits=3)
+    RMSPB=round(RMSE(df.gs[index],df.GssimPB[index]),digits=3)
+    RMSPE=round(RMSE(df.gs[indexPE],df.GssimPE[indexPE]),digits=3)
+    EF(df.gs[index],df.GssimPB[index])
+    EF(df.gs[index],df.GssimLG[index])
+    EF(df.gs[indexPE],df.GssimPE[indexPE])
+    Makie.lines!(axc,df.GssimPB,df.GssimPB,linewidth=4,color=(:grey,0.4))
+    LG = Makie.scatter!(axc,df.gs[index],df.GssimLG[index],color=(:black,0.5),markersize=8,marker='□')
+    PE = Makie.scatter!(axc,df.gs[indexPE],df.GssimPE[indexPE],color=(:blue,0.5),markersize=8,marker='∆')
+    PB = Makie.scatter!(axc,df.gs[index],df.GssimPB[index],color=(:red,0.8),markersize=8,marker='o')
+    Makie.ylims!(axc,(0.,0.4))
+    Makie.xlims!(axc,(0.,0.4))
+    axislegend(axc, [PB,PE,LG], ["PlantBiophysics.jl (RMSE="*string(RMSPB)*")","plantecophys (RMSE="*string(RMSPE)*")","LeafGasExchange.jl (RMSE="*string(RMSLG)*")"], "", position = :rb,
+        orientation = :vertical,labelsize=13)
+end</code></pre>
+<pre id='var-index' class='code-output documenter-example-output'>Makie.MakieLayout.Legend()</pre>
+
+<pre class='language-julia'><code class='language-julia'>fig</code></pre>
+<div data-jscall-id="2"><script data-jscall-id="3" type="text/javascript">
+    function register_resize_handler(remote_origin) {
+        function resize_callback(event) {
+            if (event.origin !== remote_origin) {
+                return;
+            }
+            const uuid = event.data[0];
+            const width = event.data[1];
+            const height = event.data[2];
+            const iframe = document.getElementById('db4c51ab-18c7-4177-b486-568aa8e40163');
+            if (iframe) {
+                iframe.style.width = width + "px";
+                iframe.style.height = height + "px";
+            }
+        }
+        if (window.addEventListener) {
+            window.addEventListener("message", resize_callback, false);
+        } else if (window.attachEvent) {
+            window.attachEvent("onmessage", resize_callback);
+        }
+    }
+    register_resize_handler('http://127.0.0.1:9284')
+
+</script><iframe scrolling="no" id="db4c51ab-18c7-4177-b486-568aa8e40163" data-jscall-id="1" src="http://127.0.0.1:9284/db4c51ab-18c7-4177-b486-568aa8e40163" style="position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"></iframe></div>
+
+<div class='manifest-versions'>
+<p>Built with Julia 1.7.3 and</p>
+CSV 0.10.4<br>
+Cropbox 0.3.22<br>
+DataFrames 1.3.4<br>
+LeafGasExchange 0.1.0<br>
+Makie 0.16.6<br>
+MonteCarloMeasurements 1.0.8<br>
+PlantBiophysics 0.3.0<br>
+Plots 1.29.0<br>
+RCall 0.13.13<br>
+Revise 3.3.3<br>
+WGLMakie 0.5.5
+</div>
+
+<!-- PlutoStaticHTML.End -->
+~~~

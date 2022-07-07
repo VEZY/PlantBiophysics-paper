@@ -1,0 +1,4 @@
+Sitemap: https://vezy.github.io/PlantBiophysics-paper/sitemap.xml
+
+User-agent: *
+Disallow:

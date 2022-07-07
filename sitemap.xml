@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+<url>
+    <loc>https://vezy.github.io/PlantBiophysics-paper/getting-started/index.html</loc>
+    <lastmod>2022-07-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://vezy.github.io/PlantBiophysics-paper/tutorials/PlantBiophysics_global_evaluation/index.html</loc>
+    <lastmod>2022-07-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://vezy.github.io/PlantBiophysics-paper/index.html</loc>
+    <lastmod>2022-07-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://vezy.github.io/PlantBiophysics-paper/404/index.html</loc>
+    <lastmod>2022-07-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://vezy.github.io/PlantBiophysics-paper/tutorials/PlantBiophysics_performance/index.html</loc>
+    <lastmod>2022-07-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://vezy.github.io/PlantBiophysics-paper/tutorials/PlantBiophysics_day_evaluation/index.html</loc>
+    <lastmod>2022-07-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+</urlset>
