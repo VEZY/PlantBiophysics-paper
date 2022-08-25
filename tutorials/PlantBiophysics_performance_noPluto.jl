@@ -152,7 +152,8 @@ for i = 1:N
                 sky_fraction=set.sky_fraction[i],
                 PPFD=set.PPFD[i],
                 d=set.d[i]
-            )
+            ),
+            variables_check=false
         )
     meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
 

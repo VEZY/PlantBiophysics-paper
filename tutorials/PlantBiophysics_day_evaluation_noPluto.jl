@@ -2,59 +2,127 @@ using PlantBiophysics
 using DataFrames
 using CSV
 using Statistics
-using Plots
 using MonteCarloMeasurements
-using Makie
-using CairoMakie
+using CairoMakie, Colors
 using Dates
 unsafe_comparisons(true)
 constants = Constants()
 CairoMakie.activate!()
 
 # Defining data path and choosing day and tree displayed
-datapath="/Users/simon/Code/PlantBiophysics-paper/data/"
-date="14/11/2001"
-tree=3
+datapath = "../data/"
+date = "14/11/2001"
+tree = 3
 
 # Reading file
-file = datapath*"/TumbarumbaGasex_Spot_Medlyn.csv"
+file = datapath * "/TumbarumbaGasex_Spot_Medlyn.csv"
 df = read_licor6400(file)
-day = df[(df.Date.==date)&(day.Tree.==tree),:]
+filter!(x -> x.Date == date && x.Tree == tree, df)
 
 # Fitting paramaters (photosynthesis and stomatal conductance)
-day.Asim .= day.Esim .= day.Gssim .= day.Dlsim .= day.Tlsim .= 0. ± 0.
-VcMaxRef,JMaxRef,RdRef,TPURef = PlantBiophysics.fit(Fvcb,day)
-g0,g1 = PlantBiophysics.fit(Medlyn,day)
+df.Asim .= df.Esim .= df.Gssim .= df.Dlsim .= df.Tlsim .= 0.0 ± 0.0
+VcMaxRef, JMaxRef, RdRef, TPURef = PlantBiophysics.fit(Fvcb, df)
+g0, g1 = PlantBiophysics.fit(Medlyn, df)
 
-# Simulating
-for i in 1:size(day,1)
-    meteo = Atmosphere(T = day.T[i] ± 0.1, Wind = 40. ± 10., P = day.P[i] ± 0.001*day.P[i], Rh = day.Rh[i] ± 0.01 ,Cₐ= day.Cₐ[i] ± 10.)
-    leaf = LeafModels(energy = Monteith(maxiter=100),
-        photosynthesis = Fvcb(VcMaxRef=VcMaxRef,JMaxRef=JMaxRef,RdRef=RdRef,TPURef=TPURef,θ=0.9),
-    stomatal_conductance = Medlyn(g0, g1),
-    Rₛ = (day.PPFD[i] ± 0.1*day.PPFD[i])/(4.57), sky_fraction =1. ± 0.1, 
-    PPFD = day.PPFD[i] ± 0.1*day.PPFD[i], d = 0.01 .. 0.10)
-    energy_balance!(leaf,meteo)
-    day.Asim[i] = leaf[:A]
-    day.Esim[i] = leaf[:λE]/(meteo.λ * constants.Mₕ₂ₒ)*1000.
-    day.Gssim[i] = leaf[:Gₛ]
-    day.Dlsim[i] = leaf[:Dₗ]
-    day.Tlsim[i] = leaf[:Tₗ] 
-end
+# Adding dummy uncertainty to the meteorological data:
+df_uncertain = select(
+    df,
+    :T => (x -> x ± 0.1) => :T,
+    :T => (x -> 40.0 ± 10.0) => :Wind,
+    :P => (x -> x ± (0.001 * x)) => :P,
+    :Rh => (x -> x ± 0.01) => :Rh,
+    :Cₐ => (x -> x ± 10.0) => :Cₐ,
+)
+
+# Instantiate the weather data:
+meteo = Weather(df_uncertain)
+# Instantiate the models:
+leaf = ModelList(
+    energy_balance=Monteith(maxiter=100),
+    photosynthesis=Fvcb(VcMaxRef=VcMaxRef, JMaxRef=JMaxRef, RdRef=RdRef, TPURef=TPURef, θ=0.9),
+    stomatal_conductance=Medlyn(g0, g1),
+    status=(
+        Rₛ=(df.PPFD ± (0.1 * df.PPFD)) / 4.57, # not / 0.48 because it is in the chamber, the source is only PAR
+        sky_fraction=1.0,
+        PPFD=df.PPFD ± (0.1 * df.PPFD),
+        d=Particles(Uniform(0.01, 0.10))
+    ),
+    type_promotion=Dict(Float64 => Particles{Float64,2000}),
+    variables_check=false
+)
+
+# Make the simulation:
+energy_balance!(leaf, meteo)
+
+# Extract the outputs:
+df.Asim .= leaf[:A]
+@. df.Esim = leaf[:λE] / (meteo[:λ] * constants.Mₕ₂ₒ) * 1000.0
+df.Gssim .= leaf[:Gₛ]
+df.Dlsim .= leaf[:Dₗ]
+df.Tlsim .= leaf[:Tₗ]
 
 # Plotting
-noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
-fig = Makie.Figure(backgroundcolor = RGBf(1, 1, 1),resolution = (1000, 500),font=noto_sans,dpi=600,size=(1000,1000),xminorgridstyle=true)
-#sideinfo1 = Label(fig[2,0], "Simulations", rotation = pi/2,labelsize=25)
-#sideinfo2 = Label(fig[2,0], "Observations")
-ax = Axis(fig[1,1],title="Leaf temperature in day "*date*" and tree "*string(tree),xlabel="Time (hh:mm:ss)",ylabel="Leaf temperature (°C)")
-ax.xticks = ([1,2,3,4,5,6],string.(day.Time))
-dat = Makie.scatter!(ax,day.Tₗ,color=:black,marker='∆',markersize=20)
-err = errorbars!(ax,[1,2,3,4,5,6],pmean.(day.Tlsim), pstd.(day.Tlsim), pstd.(day.Tlsim),whiskerwidth = 15)
-sim = lines!(ax,[1,2,3,4,5,6],pmean.(day.Tlsim),color=:black)
-Makie.ylims!(ax,(14.5,27.))
-axislegend(ax, [dat,sim,err], ["data","simulations","95% confidence interval"], position = :rb,
-    orientation = :vertical,labelsize=13)
-fig
 
-save(path*"../tutorials/figure_day.pdf", fig, px_per_unit = 2) # output size = 1600 x 1200 pixels
+begin
+    # line_color = Colors.RGB(36 / 255, 36 / 255, 64 / 255)
+    line_color = Colors.RGB(100 / 255, 130 / 255, 150 / 255)
+    error_color = Colors.RGBA(100 / 255, 130 / 255, 150 / 255, 0.5)
+    point_color = Colors.RGB(253 / 255, 100 / 255, 103 / 255)
+    point_fill = Colors.RGBA(253 / 255, 100 / 255, 103 / 255, 0.5)
+
+    noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
+    size_inches = (6.7, 5)
+    size_pt = 72 .* size_inches
+    fig = Figure(
+        font=noto_sans,
+        # dpi=300,
+        resolution=size_pt,
+        fontsize=10,
+        xminorgridstyle=true
+    )
+
+    ax = Axis(
+        fig[1, 1],
+        # title=string("Tree N°", tree, ", ", date),
+        xlabel="Time (HH:MM)",
+        ylabel="Leaf temperature (°C)",
+        titlesize=10,
+    )
+
+    ax.xticks = (eachindex(df.Tlsim), Dates.format.(df.Time, dateformat"HH:MM"))
+    dat = scatter!(
+        ax,
+        df.Tₗ,
+        color=point_fill,
+        markersize=12,
+        label="Measurement",
+        strokecolor=point_color,
+        strokewidth=3
+    )
+
+    sim = lines!(
+        ax,
+        eachindex(df.Tlsim),
+        pmean.(df.Tlsim),
+        color=line_color,
+        linewidth=3,
+        label="Simulation"
+    )
+
+    err = errorbars!(
+        ax,
+        eachindex(df.Tlsim),
+        pmean.(df.Tlsim),
+        pstd.(df.Tlsim),
+        pstd.(df.Tlsim),
+        color=error_color,
+        whiskerwidth=8,
+        linewidth=2.5,
+        label="95% conf. interval"
+    )
+
+    Legend(fig[2, 1], ax, orientation=:horizontal, framevisible=false, padding=0.0)
+    fig
+end
+
+save("figure_day.png", fig, px_per_unit=3)
