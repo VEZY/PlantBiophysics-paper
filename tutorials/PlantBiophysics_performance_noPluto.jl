@@ -29,9 +29,24 @@ g1 = range(0.5, 15.0, length=length_range)
 vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
 
 # Create the randomly drawn input set
-set = [rand.(vars) for i in 1:N]
+set = [rand.(vars) for i = 1:N]
 set = reshape(vcat(set...), (length(set[1]), length(set)))'
-name = ["T", "Wind", "P", "Rh", "Ca", "JMaxRef", "VcMaxRef", "RdRef", "Rs", "sky_fraction", "d", "TPURef", "g0", "g1"]
+name = [
+    "T",
+    "Wind",
+    "P",
+    "Rh",
+    "Ca",
+    "JMaxRef",
+    "VcMaxRef",
+    "RdRef",
+    "Rs",
+    "sky_fraction",
+    "d",
+    "TPURef",
+    "g0",
+    "g1",
+]
 set = DataFrame(set, name)
 @. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
 @. set[!, :PPFD] = set.Rs * 0.48 * 4.57
@@ -40,7 +55,7 @@ set = DataFrame(set, name)
 # BENCHMARKING PLANTECOPHYS
 ######################################################################################################
 
-# Import dependencies, install if not installed:
+# Import dependencies, install if not installed (but please prefer installing from R directly):
 R"""
 if(!require("plantecophys")){
     install.packages("plantecophys", repos = "https://cloud.r-project.org")
@@ -92,22 +107,25 @@ for(i in seq_len(N)){
 
 time_LG = []
 n_lg = fill(0, N)
-for i in 1:N
-    config = :Weather => (
-        PFD=set.PPFD[i],
-        CO2=set.Ca[i],
-        RH=set.Rh[i] * 100,
-        T_air=set.T[i],
-        wind=set.Wind[i],
-        P_air=set.P[i],
-        g0=set.g0[i],
-        g1=set.g1[i],
-        Vcmax=set.VcMaxRef[i],
-        Jmax=set.JMaxRef[i],
-        Rd=set.RdRef[i],
-        TPU=set.TPURef[i]
-    )
-    b_LG = @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples = microbenchmark_steps
+for i = 1:N
+    config =
+        :Weather => (
+            PFD=set.PPFD[i],
+            CO2=set.Ca[i],
+            RH=set.Rh[i] * 100,
+            T_air=set.T[i],
+            wind=set.Wind[i],
+            P_air=set.P[i],
+            g0=set.g0[i],
+            g1=set.g1[i],
+            Vcmax=set.VcMaxRef[i],
+            Jmax=set.JMaxRef[i],
+            Rd=set.RdRef[i],
+            TPU=set.TPURef[i],
+        )
+    b_LG =
+        @benchmark simulate($ModelC3MD; config=$config) evals = microbenchmark_evals samples =
+            microbenchmark_steps
     append!(time_LG, b_LG.times .* 1e-9) # transform in seconds
     n_lg[i] = 1
 end
@@ -116,25 +134,32 @@ end
 # BENCHMARKING PLANTBIOPHYSICS.JL
 ######################################################################################################
 
+constants = Constants()
 time_PB = []
-for i in 1:N
-    leaf = LeafModels(
-        energy=Monteith(),
-        photosynthesis=Fvcb(
-            VcMaxRef=set.VcMaxRef[i],
-            JMaxRef=set.JMaxRef[i],
-            RdRef=set.RdRef[i],
-            TPURef=set.TPURef[i]
-        ),
-        stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
-        Rₛ=set.Rs[i], sky_fraction=set.sky_fraction[i], PPFD=set.PPFD[i], d=set.d[i]
-    )
+for i = 1:N
+    leaf =
+        ModelList(
+            energy_balance=Monteith(),
+            photosynthesis=Fvcb(
+                VcMaxRef=set.VcMaxRef[i],
+                JMaxRef=set.JMaxRef[i],
+                RdRef=set.RdRef[i],
+                TPURef=set.TPURef[i],
+            ),
+            stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
+            status=(
+                Rₛ=set.Rs[i],
+                sky_fraction=set.sky_fraction[i],
+                PPFD=set.PPFD[i],
+                d=set.d[i]
+            )
+        )
     meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
 
-    b_PB = @benchmark energy_balance!($leaf, $meteo) evals = microbenchmark_evals samples = microbenchmark_steps
+    b_PB = @benchmark energy_balance!($leaf, $meteo, $constants) evals = microbenchmark_evals samples =
+        microbenchmark_steps
     append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
 end
-
 
 ######################################################################################################
 # STATISTICS
@@ -153,10 +178,16 @@ function Base.show(io::IO, ::MIME"text/plain", m::StatResults)
     print(
         io,
         "Benchmark:",
-        "\nMean time -> ", m.mean, " ± ", m.stddev,
-        "\nMedian time -> ", m.median,
-        "\nMinimum time -> ", m.min,
-        "\nMaximum time -> ", m.max,
+        "\nMean time -> ",
+        m.mean,
+        " ± ",
+        m.stddev,
+        "\nMedian time -> ",
+        m.median,
+        "\nMinimum time -> ",
+        m.min,
+        "\nMaximum time -> ",
+        m.max,
     )
 end
 Base.show(io::IO, m::StatResults) = print(io, m.mean, "(±", m.stddev, ')')
@@ -182,36 +213,63 @@ factorLG = mean(time_LG) / mean(time_PB)
 # PLOTTING
 ######################################################################################################
 
-function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
+function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG; bins=220)
     size_inches = (6.7, 5)
     size_pt = 72 .* size_inches
-    bins = 220
     noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
-    fig = Figure(backgroundcolor=RGBf(1, 1, 1), resolution=size_pt, font=noto_sans, fontsize=10)
+    fig = Figure(
+        backgroundcolor=RGBf(1, 1, 1),
+        resolution=size_pt,
+        font=noto_sans,
+        fontsize=10,
+    )
     ep = 1e-9
     extr = extrema(vcat(time_PB, time_PE, time_LG))
     interval = (extr[1] * 1e-1, extr[2])
 
     ga = fig[1, 1] = GridLayout()
 
-    axa = Axis(ga[1, 1], title="(a) PlantBiophysics.jl", xscale=log10, titlealign=:left, titlesize=10)
+    axa = Axis(
+        ga[1, 1],
+        title="(a) PlantBiophysics.jl",
+        xscale=log10,
+        titlealign=:left,
+        titlesize=10,
+    )
     stddevi = poly!(
         axa,
         Rect(max(ep, statsPB.mean - statsPB.stddev), 0.0, 2 * statsPB.stddev, 1),
-        color=(:orange, 0.3), yautolimits=false
+        color=(:orange, 0.3),
+        yautolimits=false,
     )
     moy = vlines!(axa, statsPB.mean; color=:red, linewidth=3, linestyle=:dot)
     hist!(axa, time_PB, normalization=:probability, bins=bins)
     # h = axa.finallimits[].widths[2]
-    axislegend(axa, [stddevi, moy], ["95% confidence interval", "Mean"], "", position=:rb,
-        orientation=:vertical, labelsize=8, framevisible=false)
+    axislegend(
+        axa,
+        [stddevi, moy],
+        ["95% confidence interval", "Mean"],
+        "",
+        position=:rb,
+        orientation=:vertical,
+        labelsize=8,
+        framevisible=false,
+    )
     xlims!(axa, interval)
 
-    axb = Axis(ga[2, 1], title="(b) plantecophys", xscale=log10, ylabel="Density", titlealign=:left, titlesize=10)
+    axb = Axis(
+        ga[2, 1],
+        title="(b) plantecophys",
+        xscale=log10,
+        ylabel="Density",
+        titlealign=:left,
+        titlesize=10,
+    )
     stddevi = poly!(
         axb,
         Rect(statsPE.mean - statsPE.stddev, 0.0, 2 * statsPE.stddev, 1),
-        color=(:orange, 0.3), yautolimits=false
+        color=(:orange, 0.3),
+        yautolimits=false,
     )
     vlines!(axb, statsPE.mean; color=:red, linewidth=3, linestyle=:dot)
     hist!(axb, time_PE, normalization=:probability, bins=bins)
@@ -220,11 +278,19 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
     # axc = Axis(ga[3, 1], title="(c) LeafGasExchange.jl", yminorticks=IntervalsBetween(10),
     #     xscale=log10, xminorticks=IntervalsBetween(10), yminorgridvisible=true, yminorticksvisible=true,
     #     xminorgridvisible=true, xminorticksvisible=true, xlabel="Time (s)")
-    axc = Axis(ga[3, 1], title="(c) LeafGasExchange.jl", xscale=log10, xlabel="Time (s)", titlealign=:left, titlesize=10)
+    axc = Axis(
+        ga[3, 1],
+        title="(c) LeafGasExchange.jl",
+        xscale=log10,
+        xlabel="Time (s)",
+        titlealign=:left,
+        titlesize=10,
+    )
     stddevi = poly!(
         axc,
         Rect(statsLG.mean - statsLG.stddev, 0.0, 2 * statsLG.stddev, 1),
-        color=(:orange, 0.3), yautolimits=false
+        color=(:orange, 0.3),
+        yautolimits=false,
     )
     vlines!(axc, statsLG.mean; color=:red, linewidth=3, linestyle=:dot)
     hist!(axc, time_LG, normalization=:probability, bins=bins)
@@ -241,31 +307,33 @@ end
 ######################################################################################################
 
 # Save the figure:
-fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
+fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG, bins=1000)
+
 save("benchmark_each_time_steps.png", fig, px_per_unit=3)
 
 # Write overall timings:
 df = DataFrame(
     [getfield(j, i) for i in fieldnames(StatResults), j in [statsPB, statsPE, statsLG]],
-    ["PlantBiophysics", "plantecophys", "LeafGasExchange"]
+    ["PlantBiophysics", "plantecophys", "LeafGasExchange"],
 )
 insertcols!(df, 1, :Stat => [fieldnames(StatResults)...])
 CSV.write("benchmark.csv", df)
 
 # Write timing for each sample:
-CSV.write("benchmark_full.csv",
+CSV.write(
+    "benchmark_full.csv",
     DataFrame(
         "package" => vcat(
             [
                 repeat([i.first], length(i.second)) for i in [
                     "PlantBiophysics" => time_PB,
                     "plantecophys" => time_PE,
-                    "LeafGasExchange" => time_LG
+                    "LeafGasExchange" => time_LG,
                 ]
-            ]...
+            ]...,
         ),
-        "sample_time" => vcat(time_PB, time_PE, time_LG)
-    )
+        "sample_time" => vcat(time_PB, time_PE, time_LG),
+    ),
 )
 
 
