@@ -310,7 +310,7 @@ end
 # Save the figure:
 fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG, bins=1000)
 
-save("benchmark_each_time_steps.png", fig, px_per_unit=3)
+save("out/benchmark_each_time_steps.png", fig, px_per_unit=3)
 
 # Write overall timings:
 df = DataFrame(

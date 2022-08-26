@@ -10,7 +10,7 @@ begin
     using DataFrames
     using CSV
     using Random
-	using PlantBiophysics
+    using PlantBiophysics
 end
 
 # ╔═╡ 994a4062-39cf-49b7-b19e-63ff90e9a574
@@ -23,10 +23,10 @@ The main objective of this notebook is to compare the computational times of `Pl
 - benchmark the computational time of the three packages via similar functions (_i.e._ photosynthesis-stomatal conductance-energy balance coupled model for C3 leaves): `energy_balance`, `photosynEB` and `simulate` with `ModelC3MD`.
 - compare the results with plots and statistics.
 
-For running the models you'll need to use the following packages: 
+For running the models you'll need to use the following packages:
 ```julia
 begin
-    using CairoMakie	
+    using CairoMakie
     using BenchmarkTools
 	using PlantBiophysics
     using Cropbox
@@ -162,7 +162,7 @@ R\"\"\"
 			RH = input$RH, PPFD=input$PPFD, Patm = input$Patm
 		)
 	}
-	
+
 	time_PE = c()
 	for(i in seq_len(N)){
 		# Put the inputs into a vector to limit dataframe overhead:
@@ -172,9 +172,9 @@ R\"\"\"
 			Jmax = set$JMaxRef[i], Vcmax = set$VcMaxRef[i], TPU = set$TPURef[i],
 			Rd = set$RdRef[i], RH = set$Rh[i]*100, PPFD=set$PPFD[i],Patm = set$P[i]
 		)
-	
+
 		m = microbenchmark(function_EB(input), times = microbenchmark_steps)
-	
+
 		time_PE = append(time_PE,m$time * 10e-9) # transform in seconds
 	}
 \"\"\"
@@ -308,7 +308,7 @@ fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
     save("benchmark_each_time_steps.png", fig, px_per_unit=3)
 ```
 
-![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/benchmark_each_time_steps.png?raw=true)
+![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/out/benchmark_each_time_steps.png?raw=true)
 
 !!! note
 	This is the plot from the latest commit on <https://github.com/VEZY/PlantBiophysics-paper/>. If you want to make your own benchmarking, run the script that was used to perform it, but careful, it takes a long time to perform!
