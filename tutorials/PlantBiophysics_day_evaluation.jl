@@ -187,7 +187,7 @@ md"""
 
 # ╔═╡ 693d373f-37d4-4a8f-b9a1-18cf9f36c9fb
 md"""
-*Figure 1. Measurement and simulation of the leaf-to-air vapor pressure deficit (Dₗ), leaf temperature (Tₗ), carbon assimilation (A) and transpiration (Tr) of a leaf in snap measurements from Medlyn et al. (2015)*
+*Figure 1. Measurement and simulation of the leaf-to-air vapor pressure deficit (Dₗ), leaf temperature (Tₗ), carbon assimilation (A) and transpiration (Tr) of a leaf in snap measurements from Medlyn et al. (2015). The photosynthesis is simulated using the model from Farquhar et al. (1980) with the analytical resolution proposed by Leuning et al. (1995) and fitted on A-Cᵢ curves data. The energy balance is simulated using the model of Monteith et al. (2013) corrected by Schymanski et al. (2017). The stomatal conductance is simulated using the model of Medlyn et al. (2011) with forced parameter fitted to match the snap measurements.*
 """
 
 # ╔═╡ 82f910b4-4c98-4f69-b818-c933ea3e9e8a
@@ -197,6 +197,11 @@ Forcing `Gₛ` would give results such as:
 ![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/out/figure_day.png?raw=true)
 """
 
+# ╔═╡ efbbae0c-47db-4322-8388-3d75ebfef553
+md"""
+*Figure 2. Measurement and simulation of the leaf-to-air vapor pressure deficit (Dₗ), leaf temperature (Tₗ), carbon assimilation (A) and transpiration (Tr) of a leaf in snap measurements from Medlyn et al. (2015). The photosynthesis is simulated using the model from Farquhar et al. (1980) with the analytical resolution proposed by Leuning et al. (1995) and fitted on A-Cᵢ curves data. The energy balance is simulated using the model of Monteith et al. (2013) corrected by Schymanski et al. (2017). The stomatal conductance is forced.*
+"""
+
 # ╔═╡ 87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
 md"""
 # References
@@ -204,7 +209,25 @@ md"""
 
 # ╔═╡ 05864aeb-0024-4848-9df9-2d66ccbcc1b7
 md"""
+Farquhar, G. D., S. von von Caemmerer, et J. A. Berry. 1980. « A biochemical model of
+photosynthetic CO2 assimilation in leaves of C3 species ». Planta 149 (1): 78‑90.
+
+Leuning, R., F. M. Kelliher, DGG de Pury, et E.D. Schulze. 1995. « Leaf nitrogen,
+photosynthesis, conductance and transpiration: scaling from leaves to canopies ». Plant,
+Cell & Environment 18 (10): 1183‑1200.
+
+Medlyn, Belinda E., Remko A. Duursma, Derek Eamus, David S. Ellsworth, I. Colin Prentice, Craig V. M. Barton, Kristine Y. Crous, Paolo De Angelis, Michael Freeman, et Lisa Wingate. 2011. « Reconciling the optimal and empirical approaches to modelling stomatal conductance ». Global Change Biology 17 (6): 2134‑44. https://doi.org/10.1111/j.1365-2486.2010.02375.x.
+
 Medlyn, Belinda; Pepper, David; Heather Keith (2015): Tumbarumba Gas Exchange. figshare. Dataset. https://doi.org/10.6084/m9.figshare.1538079.v1
+
+Monteith, John L., et Mike H. Unsworth. 2013. « Chapter 13 - Steady-State Heat Balance: (i)
+Water Surfaces, Soil, and Vegetation ». In Principles of Environmental Physics (Fourth Edition),
+edited by John L. Monteith et Mike H. Unsworth, 217‑47. Boston: Academic Press.
+
+Schymanski, Stanislaus J., et Dani Or. 2017. « Leaf-Scale Experiments Reveal an Important
+Omission in the Penman–Monteith Equation ». Hydrology and Earth System Sciences 21 (2): 685‑706.
+https://doi.org/10.5194/hess-21-685-2017.
+
 """
 
 # ╔═╡ 5921ffc0-a5b8-45a2-8822-0ba6f6cab7f7
@@ -1855,6 +1878,7 @@ version = "3.5.0+0"
 # ╟─f267250a-9950-427e-ad46-f5ee9f25136b
 # ╟─693d373f-37d4-4a8f-b9a1-18cf9f36c9fb
 # ╟─82f910b4-4c98-4f69-b818-c933ea3e9e8a
+# ╟─efbbae0c-47db-4322-8388-3d75ebfef553
 # ╟─87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
 # ╟─05864aeb-0024-4848-9df9-2d66ccbcc1b7
 # ╟─5921ffc0-a5b8-45a2-8822-0ba6f6cab7f7
