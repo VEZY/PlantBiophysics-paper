@@ -26,10 +26,11 @@ begin
 	using PlutoUI
 	unsafe_comparisons(true)
 	constants = Constants();
+	nothing
 end
 
 # ╔═╡ 784cf9f4-ab7b-11ec-3405-8f1583059c6e
-md"# Day simulation with _PlantBiophysics.jl_"
+md"# PlantBiophysics.jl evaluation at daily scale"
 
 # ╔═╡ 7c532414-cf98-4ab9-989e-d8770151c1c4
 md"""
