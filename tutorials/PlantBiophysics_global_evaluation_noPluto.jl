@@ -6,7 +6,7 @@
 # using Plots
 using Revise
 using CSV, Statistics, DataFrames, Downloads, Dates
-using AlgebraOfGraphics, CairoMakie, Colors
+using CairoMakie, Colors
 using PlantBiophysics, RCall, LeafGasExchange, Cropbox
 using MonteCarloMeasurements
 
