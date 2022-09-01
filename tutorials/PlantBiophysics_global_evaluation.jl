@@ -91,13 +91,12 @@ df_fit = let df_ = df
 	
 	    filter!(x -> x.PPFD > 1400.0, dfi)
 	
-	    # VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = PlantBiophysics.fit(Fvcb, dfi)
-		VcMaxRef, JMaxRef, RdRef, TPURef = PlantBiophysics.fit(Fvcb, dfi)
+	    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = PlantBiophysics.fit(Fvcb, dfi)
 	    df_.VcMaxRef[df_.Curve.==i] .= VcMaxRef
 	    df_.JMaxRef[df_.Curve.==i] .= JMaxRef
 	    df_.RdRef[df_.Curve.==i] .= RdRef
 	    df_.TPURef[df_.Curve.==i] .= TPURef
-	    df_.Tᵣ[df_.Curve.==i] .= 19.0
+	    df_.Tᵣ[df_.Curve.==i] .= Tᵣ
 	end
 end
 
@@ -498,12 +497,12 @@ stats =
 
 # ╔═╡ b040102a-bf17-47d7-acfd-3a80b843fc4b
 begin
-    transparency_col = 1.0
-    transparency_fill = 0.5
-    color_pb = rgb(148, 180, 159, transparency_col)
+    transparency_col = 0.8
+    transparency_fill = 0.3
+    color_pb = rgb(0, 0, 0, transparency_col)
     color_lg = rgb(223, 120, 97, transparency_col)
     color_pe = rgb(118, 84, 154, transparency_col)
-    fill_pb = rgb(148, 180, 159, transparency_fill)
+    fill_pb = rgb(0, 0, 0, transparency_fill)
     fill_lg = rgb(223, 120, 97, transparency_fill)
     fill_pe = rgb(118, 84, 154, transparency_fill)
     stw = 1.5 # strokewidth
@@ -523,7 +522,7 @@ begin
     sideinfo2 = Label(fig[3, 2:3], "Observations", textsize=12)
 
     # Assimilation
-    axa = Axis(fig[1, 2], title="(a) Aₙ: Net CO₂ assimilation", aspect=1)
+    axa = Axis(fig[1, 2], title="a) Net CO₂ assimilation (Aₙ)", aspect=1, titlealign=:left)
     xlims!(-10.0, 50.0)
     ylims!(-10.0, 50.0)
 
@@ -563,7 +562,7 @@ begin
     )
 
     # Transpiration
-    axb = Axis(fig[1, 3], title="(b) E: Transpiration rate", aspect=1)
+    axb = Axis(fig[1, 3], title="b) Transpiration rate (E)", aspect=1, titlealign=:left)
     xlims!(-0.5, 10.0)
     ylims!(-0.5, 10.0)
 
@@ -605,8 +604,9 @@ begin
     # Stomatal conductance
     axc = Axis(
         fig[2, 2],
-        title="(c) Gₛ: CO₂ stomatal conductance",
-        aspect=1
+        title="(c) CO₂ stomatal conductance (Gₛ)",
+        aspect=1, 
+		titlealign=:left
     )
     xlims!(-0.05, 0.85)
     ylims!(-0.05, 0.85)
@@ -653,7 +653,7 @@ begin
 
 
     # Leaf temperature
-    axd = Axis(fig[2, 3], title="(d) Tₗ: Leaf temperature", aspect=1)
+    axd = Axis(fig[2, 3], title="(d) Leaf temperature (Tₗ)", aspect=1, titlealign=:left)
     ablines!(axd, 0, 1, color=(:grey, 0.4), linewidth=4)
 
     # LG = scatter!(axd, df.Tₗ, df.TlsimLG,
@@ -721,7 +721,7 @@ CSV = "~0.10.4"
 CairoMakie = "~0.8.13"
 Colors = "~0.12.8"
 DataFrames = "~1.3.4"
-PlantBiophysics = "~0.4.3"
+PlantBiophysics = "~0.4.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -1675,9 +1675,9 @@ version = "0.3.2"
 
 [[deps.PlantBiophysics]]
 deps = ["CSV", "DataFrames", "Dates", "LsqFit", "MultiScaleTreeGraph", "MutableNamedTuples", "OrderedCollections", "RecipesBase", "Statistics", "Test", "YAML"]
-git-tree-sha1 = "d885dcab8d41d6cfd704dd8a2783a7345a90787b"
+git-tree-sha1 = "0588e820b66b3383144dad70bf9f8c2bd4b797b8"
 uuid = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
-version = "0.4.3"
+version = "0.4.4"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
@@ -2178,7 +2178,7 @@ version = "3.5.0+0"
 # ╟─2fabe562-5eb9-4ef1-897e-f6e380d1518c
 # ╠═4195aa80-f8e4-4e05-be83-ca97b0f6041e
 # ╟─e8171ee6-36fa-4227-8f78-2b0bd8675cdf
-# ╟─b040102a-bf17-47d7-acfd-3a80b843fc4b
+# ╠═b040102a-bf17-47d7-acfd-3a80b843fc4b
 # ╟─dd192660-2c6d-46a2-a06a-f0c1d01a9598
 # ╟─87b9a664-1746-4dba-b61f-31ed626b402b
 # ╟─0ac70149-83d3-4056-9e1b-fc91dd7d44ca

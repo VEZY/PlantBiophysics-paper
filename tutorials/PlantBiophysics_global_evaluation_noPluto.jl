@@ -374,19 +374,24 @@ function rgb(r, g, b, a)
 end
 
 begin
-    transparency_col = 1.0
-    transparency_fill = 0.5
-    color_pb = rgb(148, 180, 159, transparency_col)
-    color_lg = rgb(223, 120, 97, transparency_col)
-    color_pe = rgb(118, 84, 154, transparency_col)
-    fill_pb = rgb(148, 180, 159, transparency_fill)
-    fill_lg = rgb(223, 120, 97, transparency_fill)
-    fill_pe = rgb(118, 84, 154, transparency_fill)
+    col_pb = (244, 124, 124)
+    col_lg = (93, 174, 139)
+    col_pe = (112, 161, 215)
+    transparency_col = 0.6
+    transparency_fill = 0.4
+
+    color_pb = rgb(col_pb..., transparency_col)
+    color_lg = rgb(col_lg..., transparency_col)
+    color_pe = rgb(col_pe..., transparency_col)
+    fill_pb = rgb(col_pb..., transparency_fill)
+    fill_lg = rgb(col_lg..., transparency_fill)
+    fill_pe = rgb(col_pe..., transparency_fill)
+
     stw = 1.5 # strokewidth
     ms = 7 # markersize
     noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
     legend_lab_size = 10
-    size_inches = (10, 10)
+    size_inches = (8.5, 8.5)
     size_pt = 72 .* size_inches
     fig = Figure(
         font=noto_sans,
@@ -395,11 +400,12 @@ begin
         xminorgridstyle=true
     )
 
-    sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, textsize=12)
-    sideinfo2 = Label(fig[3, 2:3], "Observations", textsize=12)
+    sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, textsize=18)
+    sideinfo2 = Label(fig[3, 2:3], "Observations", textsize=18)
 
     # Assimilation
-    axa = Axis(fig[1, 2], title="(a) Aₙ: Net CO₂ assimilation", aspect=1)
+    axa = Axis(fig[1, 2], title="a) Net CO₂ assimilation (Aₙ)", titlealign=:left)
+
     xlims!(-10.0, 50.0)
     ylims!(-10.0, 50.0)
 
@@ -441,7 +447,7 @@ begin
     )
 
     # Transpiration
-    axb = Axis(fig[1, 3], title="(b) E: Transpiration rate", aspect=1)
+    axb = Axis(fig[1, 3], title="b) Transpiration rate (E)", titlealign=:left)
     xlims!(-0.5, 10.0)
     ylims!(-0.5, 10.0)
 
@@ -481,11 +487,7 @@ begin
     )
 
     # Stomatal conductance
-    axc = Axis(
-        fig[2, 2],
-        title="(c) Gₛ: CO₂ stomatal conductance",
-        aspect=1
-    )
+    axc = Axis(fig[2, 2], title="c) CO₂ stomatal conductance (Gₛ)", titlealign=:left)
     xlims!(-0.05, 0.85)
     ylims!(-0.05, 0.85)
 
@@ -531,7 +533,7 @@ begin
 
 
     # Leaf temperature
-    axd = Axis(fig[2, 3], title="(d) Tₗ: Leaf temperature", aspect=1)
+    axd = Axis(fig[2, 3], title="d) Leaf temperature (Tₗ)", titlealign=:left)
     abline!(axd, 0, 1, color=(:grey, 0.4), linewidth=4)
 
     LG = scatter!(axd, df.Tₗ, df.TlsimLG,
@@ -577,6 +579,18 @@ begin
         framevisible=false,
         padding=0.0
     )
+
+    # colgap!(fig.layout, 5.0)
+    # rowgap!(fig.layout, 0.0)
+
+    # colsize!(fig.layout, 1, Aspect(1, 0.005))
+    rowsize!(fig.layout, 3, Aspect(1, 0.005))
+    rowsize!(fig.layout, 4, Aspect(1, 0.005))
+    colgap!(fig.layout, 1, Relative(0.005))
+    rowgap!(fig.layout, 1, Relative(0.02))
+    rowgap!(fig.layout, 2, Relative(0.03))
+    # colsize!(fig.layout, 1, Aspect(1, 1.0))
+    resize_to_layout!(fig)
     fig
 end
 
