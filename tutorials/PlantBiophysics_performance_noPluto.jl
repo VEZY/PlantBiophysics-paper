@@ -410,7 +410,7 @@ CSV.write(
 
 
 # # For LeafGasExchange:
-# # This is usefull to know the overhead cost from Julia to Python and back.
+# # This is useful to know the overhead cost from Julia to Python and back.
 # configs = [
 #     begin
 #         :Weather => (
