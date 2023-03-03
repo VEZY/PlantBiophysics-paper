@@ -347,6 +347,10 @@ df_res = leftjoin(df_all, meas, on=[:Date, :variable])
 filter!(x -> x.Cₐ > 150, df_res)
 filter!(x -> x.Cₐ > 150, df)
 
+if saving_simulations
+    CSV.write("out/df_res.csv", df)
+end
+
 ########################################################################
 # Statistics
 ########################################################################
