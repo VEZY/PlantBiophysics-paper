@@ -7,7 +7,7 @@
 using Revise
 using CSV, Statistics, DataFrames, Downloads, Dates
 using CairoMakie, Colors
-using PlantBiophysics, RCall, LeafGasExchange, Cropbox
+using PlantBiophysics, RCall, Cropbox, LeafGasExchange
 using MonteCarloMeasurements
 
 constants = Constants()
@@ -23,10 +23,10 @@ saving_figure = false
 
 # Loading R packages
 R"""
-library(plantecophys)
-library(dplyr)
-library(readr)
-library(microbenchmark)
+if (!require('plantecophys')) install.packages('plantecophys', repos = "https://cloud.r-project.org"); library('plantecophys')
+if (!require('dplyr')) install.packages('dplyr', repos = "https://cloud.r-project.org"); library('dplyr')
+if (!require('readr')) install.packages('readr', repos = "https://cloud.r-project.org"); library('readr')
+if (!require('microbenchmark')) install.packages('microbenchmark', repos = "https://cloud.r-project.org"); library('microbenchmark')
 """
 
 ########################################################################
@@ -51,7 +51,7 @@ for i in unique(df.Curve)
 
     filter!(x -> x.PPFD > 1400.0, dfi)
 
-    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = PlantBiophysics.fit(Fvcb, dfi)
+    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = collect(PlantBiophysics.fit(Fvcb, dfi))
     df.VcMaxRef[df.Curve.==i] .= VcMaxRef
     df.JMaxRef[df.Curve.==i] .= JMaxRef
     df.RdRef[df.Curve.==i] .= RdRef
@@ -400,8 +400,8 @@ begin
         xminorgridstyle=true
     )
 
-    sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, textsize=18)
-    sideinfo2 = Label(fig[3, 2:3], "Observations", textsize=18)
+    sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, fontsize=18)
+    sideinfo2 = Label(fig[3, 2:3], "Observations", size=18)
 
     # Assimilation
     axa = Axis(fig[1, 2], title="a) Net CO₂ assimilation (Aₙ)", titlealign=:left)
