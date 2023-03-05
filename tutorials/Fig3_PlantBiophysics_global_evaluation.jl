@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.11
+# v0.19.19
 
 using Markdown
 using InteractiveUtils
@@ -13,9 +13,9 @@ end
 
 # ╔═╡ 1100f4ba-d45e-11ec-25f5-b79c9d3b9851
 md"""
-# Global evaluation of PlantBiophysics.jl
+# Global evaluation of PlantBiophysics.jl: observations vs simulations
 
-This Pluto notebook presents the computation of Fig. 3 from the scientific article. The notebook does not compute anything because it would imply a dependency on R (plantecophys) and Python (LeafGasExchange.jl), which is possible but not performant in Pluto an Github actions. Instead, we display the code and the results only. if you want to reproduce the results, execute the code provided here, or the code from the script provided [here](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/PlantBiophysics_global_evaluation_noPluto.jl).
+This Pluto notebook presents the computation of Fig. 3 from the scientific article. The notebook does not compute anything because it would imply a dependency on R (plantecophys) and Python (LeafGasExchange.jl), which is possible but not performant in Pluto an Github actions. Instead, we display the code and the results only. if you want to reproduce the results, execute the code provided here, or the code from the script provided [here](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Fig3_PlantBiophysics_global_evaluation_noPluto.jl).
 
 ## Importing the dependencies:
 
@@ -396,7 +396,12 @@ Computing the statistics for each model:
 md"""
 ## Plotting
 
-Comparison of simulations and observations for $A_n$, $E$, $G_s$ and $T_l$:
+ - Comparison of simulations and observations for $A_n$, $E$, $G_s$ and $T_l$.
+"""
+
+# ╔═╡ f180ca3d-490c-4a64-8608-4f2f5e57c41f
+md"""
+### Observations vs simulations (Fig. 3)
 """
 
 # ╔═╡ dd192660-2c6d-46a2-a06a-f0c1d01a9598
@@ -730,7 +735,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0"
 manifest_format = "2.0"
-project_hash = "260295aabe6c609a2baae1ca37bb25d17d8479d8"
+project_hash = "3eebe7ece32a2e2e184e2632b0ae040dc2fdd1c2"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -825,7 +830,7 @@ uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 version = "0.8.13"
 
 [[deps.Cairo_jll]]
-deps = ["Artifacts", "Bzip2_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
+deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
 git-tree-sha1 = "4b859a208b2397a7a623a03449e4636bdb17bcf2"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.16.1+1"
@@ -1034,10 +1039,10 @@ uuid = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 version = "0.4.1"
 
 [[deps.FFMPEG_jll]]
-deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "Pkg", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
-git-tree-sha1 = "ccd479984c7838684b3ac204b716c89955c76623"
+deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Pkg", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
+git-tree-sha1 = "74faea50c1d007c85837327f6775bea60b5492dd"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
-version = "4.4.2+0"
+version = "4.4.2+2"
 
 [[deps.FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
@@ -1398,9 +1403,9 @@ version = "1.42.0+0"
 
 [[deps.Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "42b62845d70a619f063a7da093d995ec8e15e778"
+git-tree-sha1 = "c7cb1f5d892775ba13767a87c7ada0b980ea0a71"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.16.1+1"
+version = "1.16.1+2"
 
 [[deps.Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1613,6 +1618,11 @@ version = "1.3.2+0"
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.4.1"
+
+[[deps.PCRE2_jll]]
+deps = ["Artifacts", "Libdl"]
+uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
+version = "10.40.0+0"
 
 [[deps.PCRE_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2172,13 +2182,14 @@ version = "3.5.0+0"
 # ╟─5ac831c1-cc9e-47e9-a11b-bd191a1d55a2
 # ╟─7a09574b-b06e-4c36-9fea-7757c20fd763
 # ╟─3d4375ea-2020-4829-ba70-5406c921c943
-# ╟─53a0fa15-d042-4e00-84ea-f9caa5fc3c3e
+# ╠═53a0fa15-d042-4e00-84ea-f9caa5fc3c3e
 # ╟─9f4d46ab-cc75-47e1-aef1-b7ada0e01e29
 # ╠═182787c9-5075-451f-bdc7-5a8add68d141
 # ╟─2fabe562-5eb9-4ef1-897e-f6e380d1518c
 # ╠═4195aa80-f8e4-4e05-be83-ca97b0f6041e
 # ╟─e8171ee6-36fa-4227-8f78-2b0bd8675cdf
-# ╠═b040102a-bf17-47d7-acfd-3a80b843fc4b
+# ╟─f180ca3d-490c-4a64-8608-4f2f5e57c41f
+# ╟─b040102a-bf17-47d7-acfd-3a80b843fc4b
 # ╟─dd192660-2c6d-46a2-a06a-f0c1d01a9598
 # ╟─87b9a664-1746-4dba-b61f-31ed626b402b
 # ╟─0ac70149-83d3-4056-9e1b-fc91dd7d44ca

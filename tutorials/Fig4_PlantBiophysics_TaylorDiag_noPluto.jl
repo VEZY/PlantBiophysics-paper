@@ -56,12 +56,13 @@ modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),d
 modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
 
 S = [STD(obs),STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/S[1] for i in eachindex(S)]
+S = [S[i]/S[1] for i in eachindex(S)]  # Normalize standard deviations
 C = [COR(obs,obs),COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
 
 # Plotting initial Taylor diagram
+# Using the same Taylor diagram for all the data is correct thanks to STD normalization
 nms = ["","","",""]
-fig =taylordiagram([S[1]],[C[1]],[nms[1]],normalize=true,ang=pi/2)
+fig =taylordiagram([S[1]],[C[1]],[nms[1]],normalize=true,ang=pi/2,rmsd_circ=false)
 nms = ["Data","PlantBiophysics.jl","plantecophys","LeafGasExchange.jl"]
 
 # Defining polar coordinates
@@ -89,9 +90,9 @@ modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")
 modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
 modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
 
-S = [STD(obs),STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/S[1] for i in eachindex(S)]
-C = [COR(obs,obs),COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
+S = [STD(modPB), STD(modPE), STD(modLG)]
+S = [S[i]/STD(obs) for i in eachindex(S)]
+C = [COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
 
 
 # Defining polar coordinates
@@ -99,8 +100,11 @@ rho   = S
 theta = to_polar(C)
 limSTD   = findmax(S)[1]*2
 
+cols = cols[2:end]
+strkcols = strkcols[2:end]
+
     # Plotting reference and model points
-    for i in 2:length(theta)
+    for i in eachindex(theta)
         Plots.scatter!([cos.(theta[i]).*rho[i]], [sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],color=cols[i],markershape=:rect,markersize=msize,markerstrokewidth=stw,label="")
     end
 Plots.scatter!()
@@ -117,9 +121,9 @@ modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")
 modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
 modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
 
-S = [STD(obs),STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/S[1] for i in eachindex(S)]
-C = [COR(obs,obs),COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
+S = [STD(modPB), STD(modPE), STD(modLG)]
+S = [S[i]/STD(obs) for i in eachindex(S)]
+C = [COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
 
 # Defining polar coordinates
 rho   = S
@@ -127,7 +131,7 @@ theta = to_polar(C)
 limSTD   = findmax(S)[1]*2
 
     # Plotting reference and model points
-    for i in 2:length(theta)
+    for i in eachindex(theta)
         Plots.scatter!([cos.(theta[i]).*rho[i]], [sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],color=cols[i],markershape=:diamond,markersize=msize,markerstrokewidth=stw,label="")
     end
 Plots.scatter!()
@@ -144,9 +148,9 @@ modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")
 modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
 modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
 
-S = [STD(obs),STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/S[1] for i in eachindex(S)]
-C = [COR(obs,obs),COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
+S = [STD(modPB), STD(modPE), STD(modLG)]
+S = [S[i]/STD(obs) for i in eachindex(S)]
+C = [COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
 
 # Defining polar coordinates
 rho   = S
@@ -154,7 +158,7 @@ theta = to_polar(C)
 limSTD   = findmax(S)[1]*2
 
     # Plotting reference and model points
-    for i in 2:length(theta)
+    for i in eachindex(theta)
         Plots.scatter!([cos.(theta[i]).*rho[i]], [sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],color=cols[i],markershape=:utriangle,markersize=msize,markerstrokewidth=stw,label="")
     end
 Plots.scatter!()
