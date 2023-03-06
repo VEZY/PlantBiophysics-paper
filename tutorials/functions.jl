@@ -11,7 +11,7 @@ function plot_var(ax, var_meas, var_sim)
         markersize=12,
         label="Measurement",
         strokecolor=point_color,
-        strokewidth=3
+        strokewidth=3,
     )
 
     lines!(
@@ -19,7 +19,7 @@ function plot_var(ax, var_meas, var_sim)
         pmean.(var_sim),
         color=line_color,
         linewidth=2.5,
-        label="Simulation ± 95% confidence interval"
+        label="Simulation ± 95% confidence interval",
     )
 
     errorbars!(
@@ -30,12 +30,12 @@ function plot_var(ax, var_meas, var_sim)
         pstd.(var_sim),
         color=error_color,
         whiskerwidth=5,
-        linewidth=2
+        linewidth=2,
     )
 end
 
 
-struct ForcedGs <: PlantBiophysics.AbstractGsModel
+struct ForcedGs <: PlantBiophysics.AbstractStomatal_ConductanceModel
     g0::Float64
     gs_min::Float64
 end
@@ -46,20 +46,26 @@ function PlantBiophysics.gs_closure(::ForcedGs, models, status, meteo=missing)
     status.Gₛ
 end
 
-function PlantBiophysics.stomatal_conductance!_(::ForcedGs, models, status, gs_closure)
+function PlantSimEngine.run!(::ForcedGs, models, status, gs_closure)
     status.Gₛ
 end
 
-function PlantBiophysics.stomatal_conductance!_(::ForcedGs, models, status, meteo::M, constants=Constants()) where {M<:PlantBiophysics.AbstractAtmosphere}
+function PlantSimEngine.run!(
+    ::ForcedGs,
+    models,
+    status,
+    meteo::M,
+    constants=Constants(),
+) where {M<:PlantMeteo.AbstractAtmosphere}
     status.Gₛ
 end
 
-function PlantBiophysics.inputs_(::ForcedGs)
+function PlantSimEngine.inputs_(::ForcedGs)
     NamedTuple()
 end
 
-function PlantBiophysics.outputs_(::ForcedGs)
-    (Gₛ=-999.99,)
+function PlantSimEngine.outputs_(::ForcedGs)
+    (Gₛ=-Inf,)
 end
 
 
@@ -81,7 +87,10 @@ Returns the normalized Root Mean Squared Error between observations `obs` and si
 The closer to 0 the better.
 """
 function nRMSE(obs, sim; digits=2)
-    return round(sqrt(sum((obs .- sim) .^ 2) / length(obs)) / (findmax(obs)[1] - findmin(obs)[1]), digits=digits)
+    return round(
+        sqrt(sum((obs .- sim) .^ 2) / length(obs)) / (findmax(obs)[1] - findmin(obs)[1]),
+        digits=digits,
+    )
 end
 
 """
