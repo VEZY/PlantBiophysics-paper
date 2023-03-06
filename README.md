@@ -10,5 +10,6 @@ The website is available here: https://vezy.github.io/PlantBiophysics-paper/
 - [x] Day figure with PB.jl scalar
 - [x] Day figure with PB.jl uncertainty propagation
 - [x] Performance figure
-- [ ] Make Pluto notebook for global data
-- [ ] Adapt Pluto notebook for day evaluation with Makie
+- [x] Make Pluto notebook for global data
+- [x] Adapt Pluto notebook for day evaluation with Makie
+- [ ] Update with PlantBiophysics.jl 0.8.0 (especially daily_evaluation Pluto notebook)
