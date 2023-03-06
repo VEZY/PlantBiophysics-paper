@@ -15,12 +15,12 @@ end
 md"""
 # Global evaluation of PlantBiophysics.jl: observations vs simulations
 
-This Pluto notebook presents the computation of Fig. 3 from the scientific article. The notebook does not compute anything because it would imply a dependency on R (plantecophys) and Python (LeafGasExchange.jl), which is possible but not performant in Pluto an Github actions. Instead, we display the code and the results only. if you want to reproduce the results, execute the code provided here, or the code from the script provided [here](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Fig3_PlantBiophysics_global_evaluation_noPluto.jl).
+This Pluto notebook presents the computation of Fig. 3 from the scientific article. The notebook does not compute anything because it would imply a dependency on R ([plantecophys](https://github.com/RemkoDuursma/plantecophys)) and Python ([LeafGasExchange.jl](https://github.com/cropbox/LeafGasExchange.jl)), which is possible but not performant in Pluto an Github actions. Instead, we display the code and the results only. If you want to reproduce the results, execute the code provided here, or the code from the script provided [here](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Fig3_PlantBiophysics_global_evaluation_noPluto.jl).
 
 ## Importing the dependencies:
 
-!!! note 
-	Make sure to have R installed on your computer first.
+###### Note
+Make sure to have R installed on your computer first.
 """
 
 # ╔═╡ 1609ce3c-4066-45ca-acce-8dbf081bfb89
@@ -76,7 +76,7 @@ end
 md"""
 ## Fitting
 
-Photosynthesis and stomatal conductance parameters are fitted using PlantBiophysics.jl here, but it is also possible to use plantecophys instead (see Julia the script for more info). Comparison results are close with both.
+Photosynthesis and stomatal conductance parameters are fitted using PlantBiophysics.jl here, but it is also possible to use plantecophys instead (see Julia script for more info). Comparison results are close with both.
 """
 
 # ╔═╡ f9be64a3-b788-48d8-a925-5954e532effb
@@ -104,7 +104,7 @@ end
 md"""
 ## Simulation
 
-We set the wind velocity to 20 m/s considering that the Licor-6400 chamber is well ventilated. The characteristic length is set to the square root of the chamber area in $m^2$. The leaf absorptance and emissivity are set to the default value from plantecophys.
+We set the wind velocity to 20 $m.s^{-1}$ considering that the Licor-6400 chamber is well ventilated. The characteristic length is set to the square root of the chamber area in $m^2$. The leaf absorbtance and emissivity are set to the default value from plantecophys.
 """
 
 # ╔═╡ a65d0175-f6cf-4bc9-8a2f-fbde4d2692b6
@@ -167,8 +167,8 @@ md"""
 
 Below is presented the code for running the exact same simulation with the two other packages.
 
-!!! note 
-	The code shown here for plantecophys and LeafGasExchange.jl is not executed, just displayed. If you want to reproduce the computation, please use the script instead.
+###### Note
+The code shown here for plantecophys and LeafGasExchange.jl is not executed, just displayed. If you want to reproduce the computation, please use the script instead.
 """
 
 # ╔═╡ 6e3a7997-17dd-453e-879e-8f8d6b46ca2d
@@ -377,12 +377,12 @@ Note that the real code executed here is the following, because neither `sim_LG`
 
 # ╔═╡ 182787c9-5075-451f-bdc7-5a8add68d141
 begin
-df_all = sim_PB
-df_res = leftjoin(df_all, meas, on=[:Date, :variable])
-# Filtering out the results for very low Cₐ:
-filter!(x -> x.Cₐ > 150, df_res)
-filter!(x -> x.Cₐ > 150, df)
-df_res
+	df_all = sim_PB
+	df_res = leftjoin(df_all, meas, on=[:Date, :variable])
+	# Filtering out the results for very low Cₐ:
+	filter!(x -> x.Cₐ > 150, df_res)
+	filter!(x -> x.Cₐ > 150, df)
+	df_res
 end
 
 # ╔═╡ 2fabe562-5eb9-4ef1-897e-f6e380d1518c
@@ -395,8 +395,6 @@ Computing the statistics for each model:
 # ╔═╡ e8171ee6-36fa-4227-8f78-2b0bd8675cdf
 md"""
 ## Plotting
-
- - Comparison of simulations and observations for $A_n$, $E$, $G_s$ and $T_l$.
 """
 
 # ╔═╡ f180ca3d-490c-4a64-8608-4f2f5e57c41f

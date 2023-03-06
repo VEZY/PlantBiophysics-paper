@@ -16,31 +16,34 @@ end
 # ╔═╡ 994a4062-39cf-49b7-b19e-63ff90e9a574
 md"""
 
-# _PlantBiophysics.jl_ benchmark
+# PlantBiophysics.jl benchmark
 
-The main objective of this notebook is to compare the computational times of `PlantBiophysics.jl` against the `plantecophys` R package and the `LeafGasExchange.jl` Julia package from the `Cropbox.jl` framework. The comparison follows three steps:
+The main objective of this notebook is to compare the computational times of `PlantBiophysics.jl` against the [plantecophys](https://github.com/RemkoDuursma/plantecophys) R package and the [LeafGasExchange.jl](https://github.com/cropbox/LeafGasExchange.jl) Julia package from the [Cropbox.jl](https://github.com/cropbox/Cropbox.jl) framework. The comparison follows three steps:
 - create an N-large basis of random conditions.
 - benchmark the computational time of the three packages via similar functions (_i.e._ photosynthesis-stomatal conductance-energy balance coupled model for C3 leaves): `energy_balance`, `photosynEB` and `simulate` with `ModelC3MD`.
 - compare the results with plots and statistics.
 
-For running the models you'll need to use the following packages:
+This notebook does not perform the benchmark by itself for the obvious reason that it takes forever to run, and because there is an overhead cause by Pluto (benchmark and reactive are not a good mix). Instead, it shows the outputs of [a script from this repository](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Fig5_PlantBiophysics_performance_noPluto.jl) that implements the code shown here. If you want to perform the benchmark by yourself, you can run this script from the command line. The versions used for the above dependencies are available in the [Project.toml](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Project.toml) of the repository.
+
+
+## Importing the dependencies:
+
+###### Note
+Make sure to have R installed on your computer first.
+
+Loading the Julia packages:
+
 ```julia
 begin
     using CairoMakie
-    using BenchmarkTools
+	using BenchmarkTools
 	using PlantBiophysics
     using Cropbox
     using LeafGasExchange
     using RCall
 end
 ```
-
-!!! note
-	You need to have R installed on your system to use RCall.
-
-
-!!! warning
-	This notebook does not perform the benchmark by itself for the obvious reason that it takes forever to run, and because there is an overhead cause by Pluto (benchmark and reactive are not a good mix). Instead, it shows the outputs of [a script from this repository](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Fig5_PlantBiophysics_performance_noPluto.jl) that implements the code shown here. If you want to perform the benchmark by yourself, you can run this script from the command line. The versions used for the above dependencies are available in the [Project.toml](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Project.toml) of the repository.
+	
 """
 
 # ╔═╡ 9c3f432b-4d1f-4765-9989-17e983cee5f7
@@ -50,7 +53,7 @@ md"""
 
 ### Benchmark parameters
 
-You'll find below the main parameters of the benchmark. In few words, each package runs a simulation for `N` different time-steps `microbenchmark_steps` times repeated `microbenchmark_evals` times. We make `N` different simulations because the simulation duration can vary depending on the inputs due to iterative computations in the code, *i.e.* different initial conditions can make the algorithms converge more or less rapidly.
+You'll find below the main parameters of the benchmark. In a few words, each package runs a simulation for `N` different time-steps `microbenchmark_steps` times repeated `microbenchmark_evals` times. We make `N` different simulations because the simulation duration can vary depending on the inputs due to iterative computations in the code, *i.e.* different initial conditions can make the algorithms converge more or less rapidly.
 """
 
 # ╔═╡ e7e23262-1813-4fe5-80fb-2be20cb54f89
@@ -66,7 +69,7 @@ md"""
 
 ### Random input simulation dataset
 
-We create possible ranges for input parameters. These ranges where chosen so all of the three packages don't return errors during computation (plantecophys has issues with low temperatures).
+We create possible ranges for input parameters. These ranges where chosen so all of the three packages don't return errors during computation (`plantecophys` has issues with low temperatures).
 
 - Ta: air temperature ($°C$)
 - Wind: wind speed ($m.s^{-1}$)
@@ -122,7 +125,7 @@ end
 
 # ╔═╡ ae00e44e-d864-4d04-b2e8-fac510ce44bb
 md"
-## 2. Benchmarking
+## Benchmarking
 "
 
 # ╔═╡ 8419c830-8e35-493b-91b2-adfc97e30a61
@@ -132,7 +135,6 @@ md"""
 Preparing R to make the benchmark:
 
 ```julia
-
 R\"\"\"
 if(!require("plantecophys")){
 	install.packages("plantecophys", repos = "https://cloud.r-project.org")
@@ -189,7 +191,7 @@ md"""
 
 ##### LeafGasExchange.jl
 
-Note that we benchmark `LeafGasExchange.jl` with the `nounit` flag to make a faire comparison with `PlantBiophysics.jl` in case computing units takes time (it shouldn't much).
+Note that we benchmark `LeafGasExchange.jl` with the `nounit` flag to compute a fair comparison with `PlantBiophysics.jl` in case computing units takes time (it shouldn't much).
 
 ```julia
 time_LG = []
@@ -248,14 +250,14 @@ end
 
 # ╔═╡ 87cc52dd-9878-422d-a10e-d491db2a04c6
 md"
-## 3. Comparison
+## Comparison
 "
 
 # ╔═╡ 8294a065-5285-4221-8553-e38ca23257f2
 md"""
 ##### Statistics
 
-We compute here basic statistics, _i.e._ mean, median, min, max, standard deviation. You can access it using `statsPE.min` for example.
+We compute here basic statistics, _i.e._ mean, median, min, max, standard deviation. 
 
 ```julia
 statsPB = basic_stat(time_PB)
@@ -301,7 +303,7 @@ md"
 
 # ╔═╡ 84a4b3b4-23d8-4b12-9204-110d3ba4724b
 md"""
-We here display the computational time histogram of each package on the same scale in order to compare them: `PlantBiophysics.jl` (soon), `LeafGasExchange.jl` (a) and `plantecophys`(b). y-axis represents the density (_i.e._ reaching 0.3 means that 30% of the computed times are in this bar). Orange zone represents the interval [mean - standard deviation; mean + standard deviation]. Red dashed line represents the mean. Note that x-axis is logarithmic.
+We here display the computational time histogram of each package on the same scale in order to compare them: `PlantBiophysics.jl` (a), `plantecophys` (b) and `LeafGasExchange.jl` (c). The y-axis represents the density (_i.e._ reaching 0.3 means that 30% of the computed times are in this bar). Orange zone represents the interval [mean - standard deviation; mean + standard deviation]. Red dashed line represents the mean. Note that the x-axis is logarithmic.
 
 ```julia
 fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
@@ -310,8 +312,8 @@ fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
 
 ![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/out/benchmark_each_time_steps.png?raw=true)
 
-!!! note
-	This is the plot from the latest commit on <https://github.com/VEZY/PlantBiophysics-paper/>. If you want to make your own benchmarking, run the script that was used to perform it, but careful, it takes a long time to perform!
+###### Note
+This is the plot from the latest commit on <https://github.com/VEZY/PlantBiophysics-paper/>. If you want to make your own benchmarking, run the script that was used to perform it, but careful, it takes a long time to perform!
 """
 
 # ╔═╡ b2958ece-3a4c-497e-88e3-afc45d8f3688
@@ -1191,8 +1193,8 @@ version = "17.4.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─211f1a10-061d-452a-b061-aa5eb5f07428
 # ╟─994a4062-39cf-49b7-b19e-63ff90e9a574
+# ╠═211f1a10-061d-452a-b061-aa5eb5f07428
 # ╟─9c3f432b-4d1f-4765-9989-17e983cee5f7
 # ╠═e7e23262-1813-4fe5-80fb-2be20cb54f89
 # ╟─65d00bf6-8f9a-40b4-947a-fd46ddc89753
