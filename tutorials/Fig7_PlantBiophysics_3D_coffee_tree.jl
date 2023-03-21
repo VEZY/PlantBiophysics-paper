@@ -107,6 +107,8 @@ md"""
 """
 
 # ╔═╡ 2fcdc6ba-0b5a-450a-ac4d-b013c9dfa2fd
+md"""
+```julia
 begin
 	transform!(
     mtg,
@@ -118,6 +120,13 @@ begin
 	colorbar(f[1, 2], p)
 	f
 end
+```
+"""
+
+# ╔═╡ 35962e6e-0355-4fe1-b5b8-2d009b3e799e
+md"""
+![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/out/3d_coffee.png?raw=true)
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1890,6 +1899,7 @@ version = "3.5.0+0"
 # ╟─5376ccaf-a41a-4ad2-85a8-8b4badd4d938
 # ╠═b22d0e7c-aeaf-4c28-9cf9-5368a4384cf3
 # ╟─840c1748-0502-4d33-ad81-bf8047b58037
-# ╠═2fcdc6ba-0b5a-450a-ac4d-b013c9dfa2fd
+# ╟─2fcdc6ba-0b5a-450a-ac4d-b013c9dfa2fd
+# ╟─35962e6e-0355-4fe1-b5b8-2d009b3e799e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
