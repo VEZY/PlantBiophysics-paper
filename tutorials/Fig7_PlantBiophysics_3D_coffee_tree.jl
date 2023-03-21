@@ -34,7 +34,7 @@ md"""
 """
 
 # ╔═╡ 552692ae-2f8e-4ae1-88a0-5565edabdf3f
-mtg = read_opf(joinpath(dirname(dirname(pathof(PlantBiophysics))), "test", "inputs", "scene", "opf", "coffee.opf"))
+mtg = read_opf("coffee.opf")
 
 # ╔═╡ 22f4ac9d-0181-476b-a3dd-277b2c5e31a2
 md"""
@@ -42,8 +42,7 @@ md"""
 """
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
-weather = PlantMeteo.read_weather(
-    joinpath(dirname(dirname(pathof(PlantMeteo))), "test", "data", "meteo.csv"),
+weather = PlantMeteo.read_weather("meteo.csv",
     :temperature => :T,
     :relativeHumidity => (x -> x ./ 100) => :Rh,
     :wind => :Wind,
@@ -58,7 +57,7 @@ md"""
 
 # ╔═╡ 00877758-9349-4aa6-a2c8-ac2e50e150a0
 begin
-	file = joinpath(dirname(dirname(pathof(PlantBiophysics))), "test", "inputs", "models", "plant_coffee.yml")
+	file = "plant_coffee.yml"
 	models = read_model(file)
 
 	to_initialize(models)
@@ -97,8 +96,8 @@ For sake of simplicity, we benchmark here in Sequential mode (i.e. no paralleliz
 
 # ╔═╡ b22d0e7c-aeaf-4c28-9cf9-5368a4384cf3
 begin
-	B = @benchmark run!($mtg, $models, $weather,executor=SequentialEx())
-	B
+	#B = @benchmark run!($mtg, $models, $weather,executor=SequentialEx())
+	#B
 end
 
 # ╔═╡ 840c1748-0502-4d33-ad81-bf8047b58037
@@ -156,7 +155,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0"
 manifest_format = "2.0"
-project_hash = "afbbb07c49f684974975f2886c7decee818ebf1e"
+project_hash = "427b8e92a8b55c8c8fae65c05a770f2fe4060f92"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
