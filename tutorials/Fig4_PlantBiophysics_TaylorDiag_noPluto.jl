@@ -9,10 +9,10 @@ using CSV
 using DataFrames
 using Colors
 using Measures
-plotly()
+# plotly()
 
 # Loading previous results
-df_res = DataFrame(CSV.File("out/df_res.csv"))
+df_res = CSV.read("out/df_res.csv", DataFrame)
 
 ########################################################################
 # Defining accurate colors for plotting
@@ -35,13 +35,13 @@ fill_pb = rgb(col_pb..., transparency_fill)
 fill_pe = rgb(col_lg..., transparency_fill)
 fill_lg = rgb(col_pe..., transparency_fill)
 
-cols = [:black,fill_pb,fill_lg,fill_pe] 
-strkcols = [:black,color_pb,color_lg,color_pe] 
+cols = [:black, fill_pb, fill_lg, fill_pe]
+strkcols = [:black, color_pb, color_lg, color_pe]
 
 # Parameters for fitting
 msize = 7                   # Marker size
-stw = 1.5                   
-legend_lab_size=10
+stw = 1.5
+legend_lab_size = 10
 xleg = 1.6
 yleg = 0.4
 
@@ -50,34 +50,70 @@ yleg = 0.4
 ########################################################################
 
 var = "A"
-obs   = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).measured
-modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).simulated
-modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
-modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
+obs =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).measured
+modPB =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).simulated
+modPE =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "plantecophys") == 0),
+        df_res,
+    ).simulated
+modLG =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "LeafGasExchange.jl") == 0),
+        df_res,
+    ).simulated
 
-S = [STD(obs),STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/S[1] for i in eachindex(S)]  # Normalize standard deviations
-C = [COR(obs,obs),COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
+S = [STD(obs), STD(modPB), STD(modPE), STD(modLG)]
+S = [S[i] / S[1] for i in eachindex(S)]  # Normalize standard deviations
+C = [COR(obs, obs), COR(obs, modPB), COR(obs, modPE), COR(obs, modLG)]
 
 # Plotting initial Taylor diagram
 # Using the same Taylor diagram for all the data is correct thanks to STD normalization
-nms = ["","","",""]
-fig =taylordiagram([S[1]],[C[1]],[nms[1]],normalize=true,ang=pi/2,rmsd_circ=false)
-nms = ["Data","PlantBiophysics.jl","plantecophys","LeafGasExchange.jl"]
+nms = ["", "", "", ""]
+fig = taylordiagram([S[1]], [C[1]], [nms[1]], normalize=true, ang=pi / 2, rmsd_circ=false)
+nms = ["Data", "PlantBiophysics.jl", "plantecophys", "LeafGasExchange.jl"]
 
 # Defining polar coordinates
-rho   = S
+rho = S
 theta = to_polar(C)
-limSTD   = findmax(S)[1]*2
+limSTD = findmax(S)[1] * 2
 
-    # Plotting reference and model points
-    for i in 1:length(theta)
-        Plots.scatter!([cos.(theta[i]).*rho[i]], [sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],markercolor=cols[i],markershape=:circle,markersize=msize,markerstrokewidth=stw,label=nms[i])
-    end
-plot!(fontfamily="NotoSans-Regular.ttf",fontsize=12)
-plot!(size = (700,700))
-scatter!([xleg],[yleg], markerstrokecolor=:grey,markercolor=:grey,markershape=:circle,markersize=msize,markerstrokewidth=stw, markerstrokealpha=0.6,markeralpha=0.4,label="")
-annotate!(xleg+0.05, yleg-0.005, text(string("A"), :left, legend_lab_size))
+# Plotting reference and model points
+for i = 1:length(theta)
+    Plots.scatter!(
+        [cos.(theta[i]) .* rho[i]],
+        [sin.(theta[i]) .* rho[i]],
+        markerstrokecolor=strkcols[i],
+        markercolor=cols[i],
+        markershape=:circle,
+        markersize=msize,
+        markerstrokewidth=stw,
+        label=nms[i],
+    )
+end
+Plots.plot!(fontfamily="NotoSans-Regular.ttf", fontsize=12)
+Plots.plot!(size=(700, 700))
+Plots.scatter!(
+    [xleg],
+    [yleg],
+    markerstrokecolor=:grey,
+    markercolor=:grey,
+    markershape=:circle,
+    markersize=msize,
+    markerstrokewidth=stw,
+    markerstrokealpha=0.6,
+    markeralpha=0.4,
+    label="",
+)
+annotate!(xleg + 0.05, yleg - 0.005, Plots.text(string("A"), :left, legend_lab_size))
 
 
 ########################################################################
@@ -85,84 +121,193 @@ annotate!(xleg+0.05, yleg-0.005, text(string("A"), :left, legend_lab_size))
 ########################################################################
 
 var = "E"
-obs   = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).measured
-modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).simulated
-modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
-modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
+obs =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).measured
+modPB =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).simulated
+modPE =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "plantecophys") == 0),
+        df_res,
+    ).simulated
+modLG =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "LeafGasExchange.jl") == 0),
+        df_res,
+    ).simulated
 
 S = [STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/STD(obs) for i in eachindex(S)]
-C = [COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
+S = [S[i] / STD(obs) for i in eachindex(S)]
+C = [COR(obs, modPB), COR(obs, modPE), COR(obs, modLG)]
 
 
 # Defining polar coordinates
-rho   = S
+rho = S
 theta = to_polar(C)
-limSTD   = findmax(S)[1]*2
+limSTD = findmax(S)[1] * 2
 
 cols = cols[2:end]
 strkcols = strkcols[2:end]
 
-    # Plotting reference and model points
-    for i in eachindex(theta)
-        Plots.scatter!([cos.(theta[i]).*rho[i]], [sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],color=cols[i],markershape=:rect,markersize=msize,markerstrokewidth=stw,label="")
-    end
+# Plotting reference and model points
+for i in eachindex(theta)
+    Plots.scatter!(
+        [cos.(theta[i]) .* rho[i]],
+        [sin.(theta[i]) .* rho[i]],
+        markerstrokecolor=strkcols[i],
+        color=cols[i],
+        markershape=:rect,
+        markersize=msize,
+        markerstrokewidth=stw,
+        label="",
+    )
+end
 Plots.scatter!()
-scatter!([xleg],[yleg-0.1], markerstrokecolor=:grey,markercolor=:grey,markershape=:rect,markersize=msize,markerstrokewidth=stw, markerstrokealpha=0.6,markeralpha=0.4,label="")
-annotate!(xleg+0.05, yleg-0.1-0.005, text(string("E"), :left, legend_lab_size))
+scatter!(
+    [xleg],
+    [yleg - 0.1],
+    markerstrokecolor=:grey,
+    markercolor=:grey,
+    markershape=:rect,
+    markersize=msize,
+    markerstrokewidth=stw,
+    markerstrokealpha=0.6,
+    markeralpha=0.4,
+    label="",
+)
+annotate!(xleg + 0.05, yleg - 0.1 - 0.005, Plots.text(string("E"), :left, legend_lab_size))
 
 ########################################################################
 # Computing and plotting standard deviations and correlations for leaf temperature
 ########################################################################
 
 var = "Tl"
-obs   = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).measured
-modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).simulated
-modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
-modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
+obs =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).measured
+modPB =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).simulated
+modPE =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "plantecophys") == 0),
+        df_res,
+    ).simulated
+modLG =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "LeafGasExchange.jl") == 0),
+        df_res,
+    ).simulated
 
 S = [STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/STD(obs) for i in eachindex(S)]
-C = [COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
+S = [S[i] / STD(obs) for i in eachindex(S)]
+C = [COR(obs, modPB), COR(obs, modPE), COR(obs, modLG)]
 
 # Defining polar coordinates
-rho   = S
+rho = S
 theta = to_polar(C)
-limSTD   = findmax(S)[1]*2
+limSTD = findmax(S)[1] * 2
 
-    # Plotting reference and model points
-    for i in eachindex(theta)
-        Plots.scatter!([cos.(theta[i]).*rho[i]], [sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],color=cols[i],markershape=:diamond,markersize=msize,markerstrokewidth=stw,label="")
-    end
+# Plotting reference and model points
+for i in eachindex(theta)
+    Plots.scatter!(
+        [cos.(theta[i]) .* rho[i]],
+        [sin.(theta[i]) .* rho[i]],
+        markerstrokecolor=strkcols[i],
+        color=cols[i],
+        markershape=:diamond,
+        markersize=msize,
+        markerstrokewidth=stw,
+        label="",
+    )
+end
 Plots.scatter!()
-scatter!([xleg],[yleg-0.2], markerstrokecolor=:grey,markercolor=:grey,markershape=:diamond,markersize=msize,markerstrokewidth=stw, markerstrokealpha=0.6,markeralpha=0.4,label="")
-annotate!(xleg+0.05, yleg-0.2-0.005, text(string("Tₗ"), :left, legend_lab_size))
+scatter!(
+    [xleg],
+    [yleg - 0.2],
+    markerstrokecolor=:grey,
+    markercolor=:grey,
+    markershape=:diamond,
+    markersize=msize,
+    markerstrokewidth=stw,
+    markerstrokealpha=0.6,
+    markeralpha=0.4,
+    label="",
+)
+annotate!(xleg + 0.05, yleg - 0.2 - 0.005, Plots.text(string("Tₗ"), :left, legend_lab_size))
 
 ########################################################################
 # Computing and plotting standard deviations and correlations for stomatal conductance
 ########################################################################
 
 var = "Gs"
-obs   = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).measured
-modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).simulated
-modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
-modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
+obs =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).measured
+modPB =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0),
+        df_res,
+    ).simulated
+modPE =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "plantecophys") == 0),
+        df_res,
+    ).simulated
+modLG =
+    filter(
+        x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "LeafGasExchange.jl") == 0),
+        df_res,
+    ).simulated
 
 S = [STD(modPB), STD(modPE), STD(modLG)]
-S = [S[i]/STD(obs) for i in eachindex(S)]
-C = [COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
+S = [S[i] / STD(obs) for i in eachindex(S)]
+C = [COR(obs, modPB), COR(obs, modPE), COR(obs, modLG)]
 
 # Defining polar coordinates
-rho   = S
+rho = S
 theta = to_polar(C)
-limSTD   = findmax(S)[1]*2
+limSTD = findmax(S)[1] * 2
 
-    # Plotting reference and model points
-    for i in eachindex(theta)
-        Plots.scatter!([cos.(theta[i]).*rho[i]], [sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],color=cols[i],markershape=:utriangle,markersize=msize,markerstrokewidth=stw,label="")
-    end
+# Plotting reference and model points
+for i in eachindex(theta)
+    Plots.scatter!(
+        [cos.(theta[i]) .* rho[i]],
+        [sin.(theta[i]) .* rho[i]],
+        markerstrokecolor=strkcols[i],
+        color=cols[i],
+        markershape=:utriangle,
+        markersize=msize,
+        markerstrokewidth=stw,
+        label="",
+    )
+end
 Plots.scatter!()
-scatter!([xleg],[yleg-0.3], markerstrokecolor=:grey,markercolor=:grey,markershape=:utriangle,markersize=msize,markerstrokewidth=stw, markerstrokealpha=0.6,markeralpha=0.4,label="")
-annotate!(xleg+0.05, yleg-0.3-0.005, text(string("Gₛ"), :left, legend_lab_size))
+scatter!(
+    [xleg],
+    [yleg - 0.3],
+    markerstrokecolor=:grey,
+    markercolor=:grey,
+    markershape=:utriangle,
+    markersize=msize,
+    markerstrokewidth=stw,
+    markerstrokealpha=0.6,
+    markeralpha=0.4,
+    label="",
+)
+annotate!(xleg + 0.05, yleg - 0.3 - 0.005, Plots.text(string("Gₛ"), :left, legend_lab_size))
 
-plot!(legend=:topright, foreground_color_legend = nothing)
+Plots.plot!(legend=:topright, foreground_color_legend=nothing)
+
