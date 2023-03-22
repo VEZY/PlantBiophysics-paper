@@ -338,7 +338,7 @@ filter!(x -> x.Cₐ > 150, df_res)
 filter!(x -> x.Cₐ > 150, df)
 
 if saving_simulations
-    CSV.write("out/df_res.csv", df)
+    CSV.write("out/df_res.csv", df_res)
 end
 
 ########################################################################
