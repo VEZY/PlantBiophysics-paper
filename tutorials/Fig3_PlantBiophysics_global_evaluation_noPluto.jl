@@ -386,13 +386,24 @@ begin
     legend_lab_size = 10
     size_inches = (8.5, 8.5)
     size_pt = 72 .* size_inches
-    fig = Figure(font=noto_sans, resolution=size_pt, fontsize=12, xminorgridstyle=true)
+    fig = Figure(
+        font=noto_sans,
+        resolution=size_pt,
+        fontsize=12,
+        xminorgridstyle=true,
+        backgroundcolor=:transparent,
+    )
 
     sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, fontsize=18)
     sideinfo2 = Label(fig[3, 2:3], "Observations", fontsize=18)
 
     # Assimilation
-    axa = Axis(fig[1, 2], title="a) Net CO₂ assimilation (Aₙ)", titlealign=:left)
+    axa = Axis(
+        fig[1, 2],
+        title="a) Net CO₂ assimilation (Aₙ)",
+        titlealign=:left,
+        backgroundcolor=:transparent,
+    )
 
     xlims!(-10.0, 50.0)
     ylims!(-10.0, 50.0)
@@ -455,7 +466,12 @@ begin
     )
 
     # Transpiration
-    axb = Axis(fig[1, 3], title="b) Transpiration rate (E)", titlealign=:left)
+    axb = Axis(
+        fig[1, 3],
+        title="b) Transpiration rate (E)",
+        titlealign=:left,
+        backgroundcolor=:transparent,
+    )
     xlims!(-0.5, 10.0)
     ylims!(-0.5, 10.0)
 
@@ -517,7 +533,12 @@ begin
     )
 
     # Stomatal conductance
-    axc = Axis(fig[2, 2], title="c) CO₂ stomatal conductance (Gₛ)", titlealign=:left)
+    axc = Axis(
+        fig[2, 2],
+        title="c) CO₂ stomatal conductance (Gₛ)",
+        titlealign=:left,
+        backgroundcolor=:transparent,
+    )
     xlims!(-0.05, 0.85)
     ylims!(-0.05, 0.85)
 
@@ -584,7 +605,12 @@ begin
 
 
     # Leaf temperature
-    axd = Axis(fig[2, 3], title="d) Leaf temperature (Tₗ)", titlealign=:left)
+    axd = Axis(
+        fig[2, 3],
+        title="d) Leaf temperature (Tₗ)",
+        titlealign=:left,
+        backgroundcolor=:transparent,
+    )
     ablines!(axd, 0, 1, color=(:grey, 0.4), linewidth=4)
 
     LG = scatter!(
