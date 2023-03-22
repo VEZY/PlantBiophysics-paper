@@ -6,12 +6,11 @@ using InteractiveUtils
 
 # ╔═╡ 56757555-725c-49b8-8ad9-84d99052a0c8
 begin
-	using PlantBiophysics
-	using PlantGeom, PlantMeteo, PlantSimEngine
+	using PlantBiophysics, PlantGeom, PlantMeteo, PlantSimEngine
 	using BenchmarkTools
-	using Dates
-	using FLoops
+	using Dates, DataFrames, CSV, Statistics
 	using MultiScaleTreeGraph
+	using PlutoUI
 	nothing
 end
 
