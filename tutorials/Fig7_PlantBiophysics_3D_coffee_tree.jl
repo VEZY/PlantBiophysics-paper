@@ -6,12 +6,11 @@ using InteractiveUtils
 
 # ╔═╡ 56757555-725c-49b8-8ad9-84d99052a0c8
 begin
-	using PlantBiophysics
-	using PlantGeom, PlantMeteo, PlantSimEngine
+	using PlantBiophysics, PlantGeom, PlantMeteo, PlantSimEngine
 	using BenchmarkTools
-	using Dates
-	using FLoops
+	using Dates, DataFrames, CSV, Statistics
 	using MultiScaleTreeGraph
+	using PlutoUI
 	nothing
 end
 
@@ -34,7 +33,7 @@ md"""
 """
 
 # ╔═╡ 552692ae-2f8e-4ae1-88a0-5565edabdf3f
-# mtg = read_opf("coffee.opf")
+mtg = read_opf("coffee.opf")
 
 # ╔═╡ 22f4ac9d-0181-476b-a3dd-277b2c5e31a2
 md"""
@@ -42,10 +41,10 @@ md"""
 """
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
-#weather = PlantMeteo.read_weather("meteo.csv",
-#    :temperature => :T,
-#    :relativeHumidity => (x -> x ./ 100) => :Rh,
-#    :wind => :Wind,
+weather = PlantMeteo.read_weather("meteo.csv",
+    :temperature => :T,
+    :relativeHumidity => (x -> x ./ 100) => :Rh,
+    :wind => :Wind)
 #    :atmosphereCO2_ppm => :Cₐ,
 #    date_format = DateFormat("yyyy/mm/dd")
 #)
