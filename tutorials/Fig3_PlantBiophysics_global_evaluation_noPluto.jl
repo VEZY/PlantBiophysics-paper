@@ -34,10 +34,7 @@ if (!require('microbenchmark')) install.packages('microbenchmark', repos = "http
 ########################################################################
 df = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402635"))
 
-transform!(
-    df,
-    [:Date, :Time] => ((x, y) -> Date.(x, dateformat"Y/m/d") .+ y) => :Date
-)
+transform!(df, [:Date, :Time] => ((x, y) -> Date.(x, dateformat"Y/m/d") .+ y) => :Date)
 
 df.VcMaxRef .= df.JMaxRef .= df.RdRef .= df.TPURef .= df.g0 .= df.g1 .= df.Tᵣ .= 0.0
 df.VcMaxRefPE .= df.JMaxRefPE .= df.RdRefPE .= df.TPURefPE .= df.g0PE .= df.g1PE .= 0.0
@@ -45,13 +42,13 @@ for i in unique(df.Curve)
     dfi = filter(x -> x.Curve == i, df)
     sort!(dfi, :Cᵢ)
 
-    g0, g1 = PlantBiophysics.fit(Medlyn, dfi)
+    g0, g1 = PlantSimEngine.fit(Medlyn, dfi)
     df.g0[df.Curve.==i] .= g0
     df.g1[df.Curve.==i] .= g1
 
     filter!(x -> x.PPFD > 1400.0, dfi)
 
-    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = collect(PlantBiophysics.fit(Fvcb, dfi))
+    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = collect(PlantSimEngine.fit(Fvcb, dfi))
     df.VcMaxRef[df.Curve.==i] .= VcMaxRef
     df.JMaxRef[df.Curve.==i] .= JMaxRef
     df.RdRef[df.Curve.==i] .= RdRef
@@ -139,15 +136,15 @@ emissivity = 0.95 # default from plantecophys
 ########################################################################
 # PlantBiophysics.jl
 
+atm_cols = keys(Atmosphere(T=25.0, Rh=0.5, Wind=10.0))
 df.AsimPB .= df.EsimPB .= df.TlsimPB .= df.GssimPB .= 0.0
 for i in unique(df.Curve)
     dfi = filter(x -> x.Curve == i, df)
-
-    cols = fieldnames(Atmosphere)
-    dfiMeteo = select(dfi, names(dfi, x -> Symbol(x) in cols))
+    dfiMeteo = select(dfi, names(dfi, x -> Symbol(x) in atm_cols))
     dfiMeteo.Wind .= Wind
     # Note that as we only use A-Ci curves, there is no NIR in the Licor6400
     dfiMeteo.Ri_SW_f .= dfi.PPFD .* Leaf_abs ./ (4.57)
+    dfiMeteo.check .= false
     meteo = Weather(dfiMeteo)
 
     leaf = ModelList(
@@ -155,25 +152,20 @@ for i in unique(df.Curve)
             aₛₕ=2,
             aₛᵥ=1,
             ε=emissivity, # Matching the value in plantecophys (https://github.com/RemkoDuursma/plantecophys/blob/c9749828041f10ca47c6691436678e0a5632cfb8/R/LeafEnergyBalance.R#L112)
-            maxiter=100
+            maxiter=100,
         ),
         photosynthesis=Fvcb(
             Tᵣ=dfi.Tᵣ[1],
             VcMaxRef=dfi.VcMaxRef[1],
             JMaxRef=dfi.JMaxRef[1],
             RdRef=dfi.RdRef[1],
-            TPURef=dfi.TPURef[1]
+            TPURef=dfi.TPURef[1],
         ),
         stomatal_conductance=Medlyn(dfi.g0[1], dfi.g1[1]),
-        status=(
-            Rₛ=meteo[:Ri_SW_f],
-            sky_fraction=1.0,
-            PPFD=dfi.PPFD,
-            d=d
-        )
+        status=(Rₛ=meteo[:Ri_SW_f], sky_fraction=1.0, PPFD=dfi.PPFD, d=d),
     )
 
-    energy_balance!(leaf, meteo)
+    run!(leaf, meteo)
     df.AsimPB[df.Curve.==i, :] = DataFrame(leaf).A
     df.EsimPB[df.Curve.==i, :] = DataFrame(leaf).λE ./ (meteo[:λ] * constants.Mₕ₂ₒ) * 1000
     df.TlsimPB[df.Curve.==i, :] = DataFrame(leaf).Tₗ
@@ -187,29 +179,30 @@ df.AsimLG .= df.EsimLG .= df.TlsimLG .= df.GssimLG .= 0.0
 for i in unique(df.Curve)
     dfi = filter(x -> x.Curve == i, df)
     configs = []
-    for i in 1:length(dfi.T)
-        config = :Weather => (
-            PFD=dfi.PPFD[i],
-            CO2=dfi.Cₐ[i],
-            RH=dfi.Rh[i] * 100,
-            T_air=dfi.T[i],
-            wind=Wind,
-            P_air=dfi.P[i],
-            g0=dfi.g0[i],
-            g1=1.57 * dfi.g1[i],
-            Vc25=dfi.VcMaxRef[i],
-            Jm25=dfi.JMaxRef[i],
-            Rd25=dfi.RdRef[i],
-            Tp25=dfi.TPURef[i],
-            Ear=46.39,
-            Haj=29.68,
-            w=d,
-            d=d,
-            EaVc=58.55,
-            ϵ=emissivity,
-            Dh=21.5,
-            α_s=1 - Leaf_abs
-        )
+    for i = 1:length(dfi.T)
+        config =
+            :Weather => (
+                PFD=dfi.PPFD[i],
+                CO2=dfi.Cₐ[i],
+                RH=dfi.Rh[i] * 100,
+                T_air=dfi.T[i],
+                wind=Wind,
+                P_air=dfi.P[i],
+                g0=dfi.g0[i],
+                g1=1.57 * dfi.g1[i],
+                Vc25=dfi.VcMaxRef[i],
+                Jm25=dfi.JMaxRef[i],
+                Rd25=dfi.RdRef[i],
+                Tp25=dfi.TPURef[i],
+                Ear=46.39,
+                Haj=29.68,
+                w=d,
+                d=d,
+                EaVc=58.55,
+                ϵ=emissivity,
+                Dh=21.5,
+                α_s=1 - Leaf_abs,
+            )
         push!(configs, config)
     end
     res = simulate(ModelC3MD; configs=configs, nounit=true)
@@ -290,49 +283,46 @@ end
 # Stacking the results
 ########################################################################
 
-meas =
-    stack(
-        select(
-            df,
-            [:Date => :Date, :Cₐ => :Cₐ, :A => :A, :Trmmol => :E, :Tₗ => :Tl, :Gₛ => :Gs]
-        ),
-        [:A, :E, :Tl, :Gs],
-        [:Date, :Cₐ],
-        value_name=:measured
-    )
+meas = stack(
+    select(
+        df,
+        [:Date => :Date, :Cₐ => :Cₐ, :A => :A, :Trmmol => :E, :Tₗ => :Tl, :Gₛ => :Gs],
+    ),
+    [:A, :E, :Tl, :Gs],
+    [:Date, :Cₐ],
+    value_name=:measured,
+)
 
-sim_PB =
-    stack(
-        select(
-            df,
-            [:Date => :Date, :AsimPB => :A, :EsimPB => :E, :TlsimPB => :Tl, :GssimPB => :Gs]
-        ),
-        [:A, :E, :Tl, :Gs],
-        :Date,
-        value_name=:simulated
-    )
+sim_PB = stack(
+    select(
+        df,
+        [:Date => :Date, :AsimPB => :A, :EsimPB => :E, :TlsimPB => :Tl, :GssimPB => :Gs],
+    ),
+    [:A, :E, :Tl, :Gs],
+    :Date,
+    value_name=:simulated,
+)
 sim_PB.origin .= "PlantBiophysics.jl"
 
-sim_LG =
-    stack(
-        select(
-            df,
-            [:Date => :Date, :AsimLG => :A, :EsimLG => :E, :TlsimLG => :Tl, :GssimLG => :Gs]
-        ),
-        [:A, :E, :Tl, :Gs],
-        :Date,
-        value_name=:simulated
-    )
+sim_LG = stack(
+    select(
+        df,
+        [:Date => :Date, :AsimLG => :A, :EsimLG => :E, :TlsimLG => :Tl, :GssimLG => :Gs],
+    ),
+    [:A, :E, :Tl, :Gs],
+    :Date,
+    value_name=:simulated,
+)
 sim_LG.origin .= "LeafGasExchange.jl"
 
 sim_PE = stack(
     select(
         df,
-        [:Date => :Date, :AsimPE => :A, :EsimPE => :E, :TlsimPE => :Tl, :GssimPE => :Gs]
+        [:Date => :Date, :AsimPE => :A, :EsimPE => :E, :TlsimPE => :Tl, :GssimPE => :Gs],
     ),
     [:A, :E, :Tl, :Gs],
     :Date,
-    value_name=:simulated
+    value_name=:simulated,
 )
 sim_PE.origin .= "plantecophys"
 
@@ -355,15 +345,14 @@ end
 # Statistics
 ########################################################################
 
-stats =
-    combine(
-        groupby(df_res, [:variable, :origin], sort=true),
-        [:measured, :simulated] => ((x, y) -> RMSE(x, y)) => :RMSE,
-        [:measured, :simulated] => ((x, y) -> nRMSE(x, y)) => :nRMSE,
-        [:measured, :simulated] => ((x, y) -> Bias(x, y)) => :Bias,
-        [:measured, :simulated] => ((x, y) -> nBias(x, y)) => :nBias,
-        [:measured, :simulated] => ((x, y) -> EF(x, y)) => :EF
-    )
+stats = combine(
+    groupby(df_res, [:variable, :origin], sort=true),
+    [:measured, :simulated] => ((x, y) -> RMSE(x, y)) => :RMSE,
+    [:measured, :simulated] => ((x, y) -> nRMSE(x, y)) => :nRMSE,
+    [:measured, :simulated] => ((x, y) -> Bias(x, y)) => :Bias,
+    [:measured, :simulated] => ((x, y) -> nBias(x, y)) => :nBias,
+    [:measured, :simulated] => ((x, y) -> EF(x, y)) => :EF,
+)
 
 ########################################################################
 # Plotting with Makie.jl
@@ -397,15 +386,10 @@ begin
     legend_lab_size = 10
     size_inches = (8.5, 8.5)
     size_pt = 72 .* size_inches
-    fig = Figure(
-        font=noto_sans,
-        resolution=size_pt,
-        fontsize=12,
-        xminorgridstyle=true
-    )
+    fig = Figure(font=noto_sans, resolution=size_pt, fontsize=12, xminorgridstyle=true)
 
     sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, fontsize=18)
-    sideinfo2 = Label(fig[3, 2:3], "Observations", size=18)
+    sideinfo2 = Label(fig[3, 2:3], "Observations", fontsize=18)
 
     # Assimilation
     axa = Axis(fig[1, 2], title="a) Net CO₂ assimilation (Aₙ)", titlealign=:left)
@@ -413,41 +397,61 @@ begin
     xlims!(-10.0, 50.0)
     ylims!(-10.0, 50.0)
 
-    abline!(axa, 0, 1, color=(:grey, 0.4), linewidth=4)
+    ablines!(axa, 0, 1, color=(:grey, 0.4), linewidth=4)
 
     LG = scatter!(
-        axa, df.A, df.AsimLG,
+        axa,
+        df.A,
+        df.AsimLG,
         color=fill_lg,
         markersize=ms,
         strokecolor=color_lg,
-        strokewidth=stw
+        strokewidth=stw,
     )
-    PE = scatter!(axa, df.A, df.AsimPE,
+    PE = scatter!(
+        axa,
+        df.A,
+        df.AsimPE,
         color=fill_pe,
         markersize=ms,
         strokecolor=color_pe,
-        strokewidth=stw
+        strokewidth=stw,
     )
-    PB = scatter!(axa, df.A, df.AsimPB,
+    PB = scatter!(
+        axa,
+        df.A,
+        df.AsimPB,
         color=fill_pb,
         markersize=ms,
         strokecolor=color_pb,
-        strokewidth=stw
+        strokewidth=stw,
     )
     axislegend(
         axa,
         [PB, PE, LG],
         [
-            "nRMSE: " * string(filter(x -> x.variable == "A" && x.origin == "PlantBiophysics.jl", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "A" && x.origin == "plantecophys", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "A" && x.origin == "LeafGasExchange.jl", stats).nRMSE[1]),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "A" && x.origin == "PlantBiophysics.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(x -> x.variable == "A" && x.origin == "plantecophys", stats).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "A" && x.origin == "LeafGasExchange.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
         ],
         "",
         position=:rb,
         orientation=:vertical,
         labelsize=legend_lab_size,
         padding=0.0,
-        framevisible=false
+        framevisible=false,
     )
 
     # Transpiration
@@ -455,39 +459,61 @@ begin
     xlims!(-0.5, 10.0)
     ylims!(-0.5, 10.0)
 
-    abline!(axb, 0, 1, color=(:grey, 0.4), linewidth=4)
+    ablines!(axb, 0, 1, color=(:grey, 0.4), linewidth=4)
 
-    LG = scatter!(axb, df.Trmmol, df.EsimLG,
+    LG = scatter!(
+        axb,
+        df.Trmmol,
+        df.EsimLG,
         color=fill_lg,
         markersize=ms,
         strokecolor=color_lg,
-        strokewidth=stw
+        strokewidth=stw,
     )
-    PE = scatter!(axb, df.Trmmol, df.EsimPE,
+    PE = scatter!(
+        axb,
+        df.Trmmol,
+        df.EsimPE,
         color=fill_pe,
         markersize=ms,
         strokecolor=color_pe,
-        strokewidth=stw
+        strokewidth=stw,
     )
-    PB = scatter!(axb, df.Trmmol, df.EsimPB,
+    PB = scatter!(
+        axb,
+        df.Trmmol,
+        df.EsimPB,
         color=fill_pb,
         markersize=ms,
         strokecolor=color_pb,
-        strokewidth=stw
+        strokewidth=stw,
     )
     axislegend(
         axb,
         [PB, PE, LG],
         [
-            "nRMSE: " * string(filter(x -> x.variable == "E" && x.origin == "PlantBiophysics.jl", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "E" && x.origin == "plantecophys", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "E" && x.origin == "LeafGasExchange.jl", stats).nRMSE[1]),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "E" && x.origin == "PlantBiophysics.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(x -> x.variable == "E" && x.origin == "plantecophys", stats).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "E" && x.origin == "LeafGasExchange.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
         ],
-        "", position=:rb,
+        "",
+        position=:rb,
         orientation=:vertical,
         labelsize=legend_lab_size,
         padding=0.0,
-        framevisible=false
+        framevisible=false,
     )
 
     # Stomatal conductance
@@ -497,92 +523,130 @@ begin
 
     abline!(axc, 0, 1, color=(:grey, 0.4), linewidth=4)
 
-    LG = scatter!(axc, df.Gₛ, df.GssimLG,
+    LG = scatter!(
+        axc,
+        df.Gₛ,
+        df.GssimLG,
         color=fill_lg,
         markersize=ms,
         strokecolor=color_lg,
         strokewidth=stw,
-        label="LeafGasExchange.jl"
+        label="LeafGasExchange.jl",
     )
-    PE = scatter!(axc, df.Gₛ, df.GssimPE,
+    PE = scatter!(
+        axc,
+        df.Gₛ,
+        df.GssimPE,
         color=fill_pe,
         markersize=ms,
         strokecolor=color_pe,
         label="plantecophys",
         strokewidth=stw,
     )
-    PB = scatter!(axc, df.Gₛ, df.GssimPB,
+    PB = scatter!(
+        axc,
+        df.Gₛ,
+        df.GssimPB,
         color=fill_pb,
         markersize=ms,
         strokecolor=color_pb,
         strokewidth=stw,
-        label="PlantBiophysics.jl"
+        label="PlantBiophysics.jl",
     )
 
     axislegend(
         axc,
         [PB, PE, LG],
         [
-            "nRMSE: " * string(filter(x -> x.variable == "Gs" && x.origin == "PlantBiophysics.jl", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "Gs" && x.origin == "plantecophys", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "Gs" && x.origin == "LeafGasExchange.jl", stats).nRMSE[1]),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "Gs" && x.origin == "PlantBiophysics.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(x -> x.variable == "Gs" && x.origin == "plantecophys", stats).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "Gs" && x.origin == "LeafGasExchange.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
         ],
         "",
         position=:rb,
         orientation=:vertical,
         labelsize=legend_lab_size,
         padding=0.0,
-        framevisible=false
+        framevisible=false,
     )
 
 
     # Leaf temperature
     axd = Axis(fig[2, 3], title="d) Leaf temperature (Tₗ)", titlealign=:left)
-    abline!(axd, 0, 1, color=(:grey, 0.4), linewidth=4)
+    ablines!(axd, 0, 1, color=(:grey, 0.4), linewidth=4)
 
-    LG = scatter!(axd, df.Tₗ, df.TlsimLG,
+    LG = scatter!(
+        axd,
+        df.Tₗ,
+        df.TlsimLG,
         color=fill_lg,
         markersize=ms,
         strokecolor=color_lg,
-        strokewidth=stw
+        strokewidth=stw,
     )
-    PE = scatter!(axd, df.Tₗ, df.TlsimPE,
+    PE = scatter!(
+        axd,
+        df.Tₗ,
+        df.TlsimPE,
         color=fill_pe,
         markersize=ms,
         strokecolor=color_pe,
-        strokewidth=stw
+        strokewidth=stw,
     )
-    PB = scatter!(axd, df.Tₗ, df.TlsimPB,
+    PB = scatter!(
+        axd,
+        df.Tₗ,
+        df.TlsimPB,
         color=fill_pb,
         markersize=ms,
         strokecolor=color_pb,
-        strokewidth=stw
+        strokewidth=stw,
     )
 
     xlims!(10.0, 36.0)
     ylims!(10.0, 36.0)
 
     axislegend(
-        axd, [PB, PE, LG],
+        axd,
+        [PB, PE, LG],
         [
-            "nRMSE: " * string(filter(x -> x.variable == "Tl" && x.origin == "PlantBiophysics.jl", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "Tl" && x.origin == "plantecophys", stats).nRMSE[1]),
-            "nRMSE: " * string(filter(x -> x.variable == "Tl" && x.origin == "LeafGasExchange.jl", stats).nRMSE[1]),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "Tl" && x.origin == "PlantBiophysics.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(x -> x.variable == "Tl" && x.origin == "plantecophys", stats).nRMSE[1],
+            ),
+            "nRMSE: " * string(
+                filter(
+                    x -> x.variable == "Tl" && x.origin == "LeafGasExchange.jl",
+                    stats,
+                ).nRMSE[1],
+            ),
         ],
-        "", position=:rb,
+        "",
+        position=:rb,
         orientation=:vertical,
         labelsize=legend_lab_size,
         padding=0.0,
-        framevisible=false
+        framevisible=false,
     )
 
-    Legend(
-        fig[4, 1:end],
-        axc,
-        orientation=:horizontal,
-        framevisible=false,
-        padding=0.0
-    )
+    Legend(fig[4, 1:end], axc, orientation=:horizontal, framevisible=false, padding=0.0)
 
     # colgap!(fig.layout, 5.0)
     # rowgap!(fig.layout, 0.0)
