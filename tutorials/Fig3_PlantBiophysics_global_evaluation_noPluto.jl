@@ -7,7 +7,7 @@
 using Revise
 using CSV, Statistics, DataFrames, Downloads, Dates
 using CairoMakie, Colors
-using PlantBiophysics, RCall, Cropbox, LeafGasExchange
+using PlantBiophysics, PlantSimEngine, PlantMeteo, RCall, Cropbox, LeafGasExchange
 using MonteCarloMeasurements
 
 constants = Constants()
