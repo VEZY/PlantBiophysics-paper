@@ -34,7 +34,7 @@ md"""
 """
 
 # ╔═╡ 552692ae-2f8e-4ae1-88a0-5565edabdf3f
-# mtg = read_opf("coffee.opf")
+mtg = read_opf("coffee.opf")
 
 # ╔═╡ 22f4ac9d-0181-476b-a3dd-277b2c5e31a2
 md"""
@@ -42,13 +42,13 @@ md"""
 """
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
-#weather = PlantMeteo.read_weather("meteo.csv",
-#    :temperature => :T,
-#    :relativeHumidity => (x -> x ./ 100) => :Rh,
-#    :wind => :Wind,
-#    :atmosphereCO2_ppm => :Cₐ,
-#    date_format = DateFormat("yyyy/mm/dd")
-#)
+weather = PlantMeteo.read_weather("meteo.csv",
+    :temperature => :T,
+    :relativeHumidity => (x -> x ./ 100) => :Rh,
+    :wind => :Wind,
+    :atmosphereCO2_ppm => :Cₐ,
+    date_format = DateFormat("yyyy/mm/dd")
+)
 
 # ╔═╡ c13c9dd7-3a8c-436a-9520-c638a76b7135
 md"""
