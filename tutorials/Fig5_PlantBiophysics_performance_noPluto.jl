@@ -2,7 +2,7 @@
 # ]activate .
 
 using Random, Statistics, LaTeXStrings, DataFrames, BenchmarkTools, CairoMakie, CSV
-using Cropbox, LeafGasExchange, RCall, PlantBiophysics
+using Cropbox, LeafGasExchange, RCall, PlantBiophysics, PlantMeteo, PlantSimEngine
 
 # Parameters :
 Random.seed!(1)
@@ -137,28 +137,27 @@ end
 constants = Constants()
 time_PB = []
 for i = 1:N
-    leaf =
-        ModelList(
-            energy_balance=Monteith(),
-            photosynthesis=Fvcb(
-                VcMaxRef=set.VcMaxRef[i],
-                JMaxRef=set.JMaxRef[i],
-                RdRef=set.RdRef[i],
-                TPURef=set.TPURef[i],
-            ),
-            stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
-            status=(
-                Rₛ=set.Rs[i],
-                sky_fraction=set.sky_fraction[i],
-                PPFD=set.PPFD[i],
-                d=set.d[i]
-            ),
-            variables_check=false
-        )
+    leaf = ModelList(
+        energy_balance=Monteith(),
+        photosynthesis=Fvcb(
+            VcMaxRef=set.VcMaxRef[i],
+            JMaxRef=set.JMaxRef[i],
+            RdRef=set.RdRef[i],
+            TPURef=set.TPURef[i],
+        ),
+        stomatal_conductance=Medlyn(set.g0[i], set.g1[i]),
+        status=(
+            Rₛ=set.Rs[i],
+            sky_fraction=set.sky_fraction[i],
+            PPFD=set.PPFD[i],
+            d=set.d[i],
+        ),
+    )
+    deps = PlantSimEngine.dep(leaf)
     meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
-
-    b_PB = @benchmark energy_balance!($leaf, $meteo, $constants) evals = microbenchmark_evals samples =
-        microbenchmark_steps
+    st = PlantMeteo.row_struct(leaf.status[1])
+    b_PB = @benchmark run!($leaf, $deps, $st, $meteo, $constants, nothing) evals =
+        microbenchmark_evals samples = microbenchmark_steps
     append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
 end
 
@@ -214,12 +213,22 @@ factorLG = mean(time_LG) / mean(time_PB)
 # PLOTTING
 ######################################################################################################
 
-function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG; bins=220)
+function plot_benchmark_Makie(
+    statsPB,
+    statsPE,
+    statsLG,
+    time_PB,
+    time_PE,
+    time_LG;
+    bins=220,
+    backgroundcolor=:transparent,
+)
+
     size_inches = (6.7, 5)
     size_pt = 72 .* size_inches
     noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
     fig = Figure(
-        backgroundcolor=RGBf(1, 1, 1),
+        backgroundcolor=backgroundcolor,
         resolution=size_pt,
         font=noto_sans,
         fontsize=10,
@@ -236,6 +245,7 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
         xscale=log10,
         titlealign=:left,
         titlesize=10,
+        backgroundcolor=backgroundcolor,
     )
     stddevi = poly!(
         axa,
@@ -256,7 +266,7 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
         labelsize=8,
         framevisible=false,
     )
-    xlims!(axa, interval)
+    CairoMakie.xlims!(axa, interval)
 
     axb = Axis(
         ga[2, 1],
@@ -265,6 +275,7 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
         ylabel="Density",
         titlealign=:left,
         titlesize=10,
+        backgroundcolor=backgroundcolor,
     )
     stddevi = poly!(
         axb,
@@ -274,7 +285,7 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
     )
     vlines!(axb, statsPE.mean; color=:red, linewidth=3, linestyle=:dot)
     hist!(axb, time_PE, normalization=:probability, bins=bins)
-    xlims!(axb, interval)
+    CairoMakie.xlims!(axb, interval)
 
     # axc = Axis(ga[3, 1], title="(c) LeafGasExchange.jl", yminorticks=IntervalsBetween(10),
     #     xscale=log10, xminorticks=IntervalsBetween(10), yminorgridvisible=true, yminorticksvisible=true,
@@ -286,6 +297,7 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
         xlabel="Time (s)",
         titlealign=:left,
         titlesize=10,
+        backgroundcolor=backgroundcolor,
     )
     stddevi = poly!(
         axc,
@@ -295,7 +307,7 @@ function plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_
     )
     vlines!(axc, statsLG.mean; color=:red, linewidth=3, linestyle=:dot)
     hist!(axc, time_LG, normalization=:probability, bins=bins)
-    xlims!(axc, interval)
+    CairoMakie.xlims!(axc, interval)
 
     rowgap!(ga, 7)
     hidexdecorations!(axa, grid=false)
@@ -308,9 +320,18 @@ end
 ######################################################################################################
 
 # Save the figure:
-fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG, bins=1000)
+fig = plot_benchmark_Makie(
+    statsPB,
+    statsPE,
+    statsLG,
+    time_PB,
+    time_PE,
+    time_LG,
+    bins=1000,
+    backgroundcolor=:white,
+)
 
-save("out/benchmark_each_time_steps.png", fig, px_per_unit=3)
+save("out/benchmark_each_time_steps.png", fig, px_per_unit=6)
 
 # Write overall timings:
 df = DataFrame(
