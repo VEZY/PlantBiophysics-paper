@@ -41,10 +41,10 @@ md"""
 """
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
-#weather = PlantMeteo.read_weather("meteo.csv",
-#    :temperature => :T,
-#    :relativeHumidity => (x -> x ./ 100) => :Rh,
-#    :wind => :Wind,
+weather = PlantMeteo.read_weather("meteo.csv",
+    :temperature => :T,
+    :relativeHumidity => (x -> x ./ 100) => :Rh,
+    :wind => :Wind)
 #    :atmosphereCO2_ppm => :Cₐ,
 #    date_format = DateFormat("yyyy/mm/dd")
 #)
