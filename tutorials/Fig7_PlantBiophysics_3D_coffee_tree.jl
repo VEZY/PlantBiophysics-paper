@@ -33,7 +33,9 @@ md"""
 """
 
 # ╔═╡ 552692ae-2f8e-4ae1-88a0-5565edabdf3f
-mtg = read_opf("coffee.opf")
+begin
+	mtg = read_opf("coffee.opf")
+end
 
 # ╔═╡ 22f4ac9d-0181-476b-a3dd-277b2c5e31a2
 md"""
@@ -41,13 +43,17 @@ md"""
 """
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
+md"""
+```julia
 weather = PlantMeteo.read_weather("meteo.csv",
     :temperature => :T,
     :relativeHumidity => (x -> x ./ 100) => :Rh,
     :wind => :Wind)
-#    :atmosphereCO2_ppm => :Cₐ,
-#    date_format = DateFormat("yyyy/mm/dd")
-#)
+    :atmosphereCO2_ppm => :Cₐ,
+    date_format = DateFormat("yyyy/mm/dd")
+)
+```
+"""
 
 # ╔═╡ c13c9dd7-3a8c-436a-9520-c638a76b7135
 md"""
@@ -55,12 +61,14 @@ md"""
 """
 
 # ╔═╡ 00877758-9349-4aa6-a2c8-ac2e50e150a0
-begin
-	#file = "plant_coffee.yml"
-	#models = read_model(file)
+md"""
+```julia
+file = "plant_coffee.yml"
+models = read_model(file)
 
-	#to_initialize(models)
-end
+to_initialize(models
+```
+"""
 
 
 # ╔═╡ e9293038-6179-481e-93c9-a619bcbce8ca
@@ -69,14 +77,18 @@ md"""
 """
 
 # ╔═╡ f02f400c-cc1f-4798-8045-e6fb93ec5647
-#transform!(
-#    mtg,
-#    [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y * 1.2) => :Rᵢ, # This would be the incident radiation
-#    [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y) => :Rₛ,
-#    :Ra_PAR_f => (x -> x * 4.57) => :PPFD,
-#    (x -> 0.3) => :d,
-#    ignore_nothing = true
-#)
+md"""
+```julia
+transform!(
+    mtg,
+    [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y * 1.2) => :Rᵢ, # This would be the incident radiation
+    [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y) => :Rₛ,
+    :Ra_PAR_f => (x -> x * 4.57) => :PPFD,
+    (x -> 0.3) => :d,
+    ignore_nothing = true
+)
+```
+"""
 
 # ╔═╡ 0ce68c8e-13a2-499d-86c1-59ea31c69f42
 md"""
@@ -84,7 +96,11 @@ md"""
 """
 
 # ╔═╡ 37f50a97-2842-4b12-ab70-ab56de09af0b
-#run!(mtg, models, weather)
+md"""
+```julia
+run!(mtg, models, weather)
+```
+"""
 
 # ╔═╡ 5376ccaf-a41a-4ad2-85a8-8b4badd4d938
 md"""
@@ -94,10 +110,11 @@ For sake of simplicity, we benchmark here in Sequential mode (i.e. no paralleliz
 """
 
 # ╔═╡ b22d0e7c-aeaf-4c28-9cf9-5368a4384cf3
-begin
-	#B = @benchmark run!($mtg, $models, $weather,executor=SequentialEx())
-	#B
-end
+md"""
+```julia
+B = @benchmark run!($mtg, $models, $weather,executor=SequentialEx())
+```
+"""
 
 # ╔═╡ 840c1748-0502-4d33-ad81-bf8047b58037
 md"""
