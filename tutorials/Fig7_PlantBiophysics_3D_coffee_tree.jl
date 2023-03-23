@@ -47,7 +47,7 @@ begin
 	weather = PlantMeteo.read_weather("meteo.csv",
    	 		:temperature => :T,
     			:relativeHumidity => (x -> x ./ 100) => :Rh,
-  	 		:wind => :Wind)
+  	 		:wind => :Wind,
     			:atmosphereCO2_ppm => :Cₐ,
    			date_format = DateFormat("yyyy/mm/dd")
 end
