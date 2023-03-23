@@ -7,7 +7,8 @@ node_modules/
 package.json
 package-lock.json
 
-Manifest.toml
+/Manifest.toml
+
 _assets/og-image/
 **/*.log
 **/*.txt
