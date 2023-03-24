@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="/PlantBiophysics-paper/assets/favicon.png">
+  <script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ["\\(", "\\)"]],
+      processEscapes: true,
+    }
+  };
+</script>
+
+<!-- This weird alignment is required by Franklin's parser. -->
+<script
+    async
+    src="/PlantBiophysics-paper/assets/MathJax/MathJax-3.2.0/es5/tex-mml-chtml.js">
+</script>
+
+<style>
+@font-face {
+  src: url("/JuliaTutorialsTemplate//assets/MathJax/MathJax-3.2.0/es5/output/chtml/fonts/woff-v2/MathJax_Main-Regular.woff">
+}
+</style>
+
+<style>
+@font-face {
+  src: url("/JuliaTutorialsTemplate//assets/MathJax/MathJax-3.2.0/es5/output/chtml/fonts/woff-v2/MathJax_Zero.woff">
+}
+</style>
+
+<style>
+@font-face {
+  src: url("/JuliaTutorialsTemplate//assets/MathJax/MathJax-3.2.0/es5/output/chtml/fonts/woff-v2/MathJax_Math-Italic.woff">
+}
+</style>
+
+  <link rel="stylesheet"
+  href="/PlantBiophysics-paper/assets/Highlight/cdn-release-11.4.0/build/styles/github.min.css">
+
+<script
+  src="/PlantBiophysics-paper/assets/Highlight/cdn-release-11.4.0/build/highlight.min.js">
+</script>
+
+<script
+  src="/PlantBiophysics-paper/assets/Highlight/cdn-release-11.4.0/build/languages/julia.min.js">
+</script>
+
+<script
+  src="/PlantBiophysics-paper/assets/Highlight/cdn-release-11.4.0/build/languages/julia-repl.min.js">
+</script>
+
+<script>
+  hljs.configure({tabReplace: '    '});
+  hljs.highlightAll();
+</script>
+
+    <style>
+    @font-face {
+      font-family: JuliaMono-Regular;
+      src: url("/PlantBiophysics-paper//assets/JuliaMono/juliamono-0.044/webfonts/JuliaMono-Regular.woff2");
+    }
+    </style>
+
+  <link rel="stylesheet" href="/PlantBiophysics-paper/css/spectre.min.css">
+  <link rel="stylesheet" href="/PlantBiophysics-paper/css/spectre-exp.min.css">
+  <link rel="stylesheet" href="/PlantBiophysics-paper/css/spectre-icons.min.css">
+  <link rel="stylesheet" href="/PlantBiophysics-paper/css/spectre-overrides.css">
+  <link rel="stylesheet" href="/PlantBiophysics-paper/css/docs.min.css">
+
+  <title> - PlantBiophysics.jl paper</title>
+  <meta name="description" content="A template for building websites with Julia language content. Easily create Pluto notebooks and publish them online.">
+</head>
+<body>
+  <div class="docs-container off-canvas off-canvas-sidebar-show">
+  <div class="docs-navbar">
+    <a class="off-canvas-toggle btn btn-link btn-action" href="#sidebar"><i class="icon icon-menu"></i></a>
+    <div class="btns d-flex">
+        <a class="btn btn-primary ml-1" href="https://github.com/VEZY/PlantBiophysics-paper">GitHub</a>
+    </div>
+</div>
+
+<div id="sidebar" class="docs-sidebar off-canvas-sidebar">
+
+    <div class="docs-brand">
+        <h5><a href="/PlantBiophysics-paper/">PlantBiophysics.jl paper</a></h5>
+    </div>
+
+    <div class="docs-nav">
+        <div class="accordion-container">
+            <ul class="menu menu-nav">
+                <div class="menu-header">PlantBiophysics.jl evaluation</div>
+                <li class='menu-item '><a href='/PlantBiophysics-paper/tutorials/Fig3_PlantBiophysics_global_evaluation/'>Tumbarumba 2001 data evaluation: observations vs. simulations</a></li>
+                <li class='menu-item '><a href='/PlantBiophysics-paper/tutorials/Fig4_PlantBiophysics_TaylorDiag/'>Tumbarumba 2001 data evaluation: Taylor diagram</a></li>
+                <li class='menu-item '><a href='/PlantBiophysics-paper/tutorials/Fig5_PlantBiophysics_performance/'>Benchmark</a></li>
+                <li class='menu-item '><a href='/PlantBiophysics-paper/tutorials/Fig6_PlantBiophysics_day_evaluation/'>Day leaf temperature evolution</a></li>
+                <li class='menu-item active'><a href='/PlantBiophysics-paper/tutorials/Fig7_PlantBiophysics_3D_coffee_tree/'>3D coffee tree simulation</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+<a class="off-canvas-overlay" href="#close"></a>
+
+
+<div class="off-canvas-content">
+<div id="content" class="docs-content">
+<div class="container">
+<!-- Content appended here -->
+<div class="franklin-content">
+<!-- PlutoStaticHTML.Begin -->
+<!--
+    # This information is used for caching.
+    [PlutoStaticHTML.State]
+    input_sha = "20d362bd18ef7ebc0ed4a9f806e6175b208df916323980fb6bca97b0e810a56b"
+    julia_version = "1.8.5"
+-->
+
+<div class="markdown"><h1>PlantBiophysics.jl 3D global tree simulation</h1>
+<p>This Pluto notebook presents the computation of Fig. 7 from the scientific article. It displays leaf temperature on a 3D coffee tree simulated by PlantBiophysics.jl. Non-Pluto Julia script is also available &#40;see <a href="https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Fig7_PlantBiophysics_3D_coffee_tree_noPluto.jl">here</a>&#41;.</p>
+<h2>Importing the dependencies:</h2>
+<p>Loading the Julia packages:</p>
+</div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    using PlantBiophysics, PlantGeom, PlantMeteo, PlantSimEngine
+    using BenchmarkTools
+    using Dates, DataFrames, CSV, Statistics
+    using MultiScaleTreeGraph
+    using PlutoUI
+    nothing
+end</code></pre>
+
+
+
+<div class="markdown"><h2>Reading data</h2>
+<h4>MTG file</h4>
+</div>
+
+
+<div class="markdown"><p>julia<code>mtg &#61; read_opf&#40;&quot;coffee.opf&quot;&#41;</code></p>
+</div>
+
+
+<div class="markdown"><h4>Meteorological data</h4>
+</div>
+
+
+<div class="markdown"><pre><code>weather &#61; PlantMeteo.read_weather&#40;&quot;meteo.csv&quot;,
+    		:temperature &#61;&gt; :T,
+    		:relativeHumidity &#61;&gt; &#40;x -&gt; x ./ 100&#41; &#61;&gt; :Rh,
+    		:wind &#61;&gt; :Wind,
+    		:atmosphereCO2_ppm &#61;&gt; :Cₐ,
+    		date_format &#61; DateFormat&#40;&quot;yyyy/mm/dd&quot;&#41;
+&#41;</code></pre>
+</div>
+
+
+<div class="markdown"><h4>Models list</h4>
+</div>
+
+
+<div class="markdown"><pre><code class="language-julia">file &#61; &quot;plant_coffee.yml&quot;
+models &#61; read_model&#40;file&#41;
+
+to_initialize&#40;models</code></pre>
+</div>
+
+
+<div class="markdown"><h2>Adding light interception data: incident radiation</h2>
+</div>
+
+
+<div class="markdown"><pre><code class="language-julia">transform&#33;&#40;
+    mtg,
+    &#91;:Ra_PAR_f, :Ra_NIR_f&#93; &#61;&gt; &#40;&#40;x, y&#41; -&gt; x &#43; y * 1.2&#41; &#61;&gt; :Rᵢ, # This would be the incident radiation
+    &#91;:Ra_PAR_f, :Ra_NIR_f&#93; &#61;&gt; &#40;&#40;x, y&#41; -&gt; x &#43; y&#41; &#61;&gt; :Rₛ,
+    :Ra_PAR_f &#61;&gt; &#40;x -&gt; x * 4.57&#41; &#61;&gt; :PPFD,
+    &#40;x -&gt; 0.3&#41; &#61;&gt; :d,
+    ignore_nothing &#61; true
+&#41;</code></pre>
+</div>
+
+
+<div class="markdown"><h2>Running the simulation</h2>
+</div>
+
+
+<div class="markdown"><pre><code class="language-julia">run&#33;&#40;mtg, models, weather&#41;</code></pre>
+</div>
+
+
+<div class="markdown"><h2>Quickly benchmarking</h2>
+<p>For sake of simplicity, we benchmark here in Sequential mode &#40;i.e. no parallelization&#41;.</p>
+</div>
+
+
+<div class="markdown"><pre><code class="language-julia">B &#61; @benchmark run&#33;&#40;&#36;mtg, &#36;models, &#36;weather,executor&#61;SequentialEx&#40;&#41;&#41;</code></pre>
+</div>
+
+
+<div class="markdown"><h2>Plotting the result in 3D</h2>
+</div>
+
+
+<div class="markdown"><pre><code class="language-julia">begin
+	transform&#33;&#40;
+    mtg,
+    :Tₗ &#61;&gt; &#40;x -&gt; x&#91;1&#93;&#41; &#61;&gt; :Tₗ_1,
+    ignore_nothing &#61; true
+&#41;
+
+	f, ax, p &#61; viz&#40;mtg, color &#61; :Tₗ_1&#41;
+	colorbar&#40;f&#91;1, 2&#93;, p&#41;
+	f
+end</code></pre>
+</div>
+
+
+<div class="markdown"><p><img src="https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/out/3d_coffee.png?raw&#61;true" alt="" /></p>
+</div>
+<div class='manifest-versions'>
+<p>Built with Julia 1.8.5 and</p>
+BenchmarkTools 1.3.2<br>
+CSV 0.10.9<br>
+DataFrames 1.5.0<br>
+MultiScaleTreeGraph 0.9.0<br>
+PlantBiophysics 0.9.0<br>
+PlantGeom 0.5.1<br>
+PlantMeteo 0.3.0<br>
+PlantSimEngine 0.5.1<br>
+PlutoUI 0.7.50
+</div>
+
+<!-- PlutoStaticHTML.End -->
+
+<p><em>To run this tutorial locally, download &#91;this file&#93;&#40;/tutorials/Fig7</em>PlantBiophysics<em>3D</em>coffee<em>tree.jl&#41; and open it with <a href="https://plutojl.org">Pluto.jl</a>.</em></p>
+<div id="copyright" class="docs-footer container grid-lg">
+<a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> Rik Huijzer
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    </div>
+    </div>
+    </div>
+    </div>
+  </body>
+</html>
