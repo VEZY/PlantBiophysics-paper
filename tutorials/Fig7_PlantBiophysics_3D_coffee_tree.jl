@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.19
+# v0.19.22
 
 using Markdown
 using InteractiveUtils
@@ -7,7 +7,9 @@ using InteractiveUtils
 # ╔═╡ 56757555-725c-49b8-8ad9-84d99052a0c8
 begin
 	using PlantBiophysics, PlantGeom, PlantMeteo, PlantSimEngine
+	using CairoMakie
 	using BenchmarkTools
+	using FLoops
 	using Dates, DataFrames, CSV, Statistics
 	using MultiScaleTreeGraph
 	using PlutoUI
@@ -33,11 +35,7 @@ md"""
 """
 
 # ╔═╡ 552692ae-2f8e-4ae1-88a0-5565edabdf3f
-md"""
-julia```
 mtg = read_opf("coffee.opf")
-```
-"""
 
 # ╔═╡ 22f4ac9d-0181-476b-a3dd-277b2c5e31a2
 md"""
@@ -45,17 +43,14 @@ md"""
 """
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
-md"""
-```
 weather = PlantMeteo.read_weather("meteo.csv",
     		:temperature => :T,
     		:relativeHumidity => (x -> x ./ 100) => :Rh,
     		:wind => :Wind,
+			:VPD => (x -> x ./ 100.0) => :VPD,
     		:atmosphereCO2_ppm => :Cₐ,
     		date_format = DateFormat("yyyy/mm/dd")
-)
-```
-"""
+);
 
 # ╔═╡ c13c9dd7-3a8c-436a-9520-c638a76b7135
 md"""
@@ -63,15 +58,7 @@ md"""
 """
 
 # ╔═╡ 00877758-9349-4aa6-a2c8-ac2e50e150a0
-md"""
-```julia
-file = "plant_coffee.yml"
-models = read_model(file)
-
-to_initialize(models
-```
-"""
-
+models = read_model("plant_coffee.yml");
 
 # ╔═╡ e9293038-6179-481e-93c9-a619bcbce8ca
 md"""
@@ -79,9 +66,7 @@ md"""
 """
 
 # ╔═╡ f02f400c-cc1f-4798-8045-e6fb93ec5647
-md"""
-```julia
-transform!(
+mtg2 = transform(
     mtg,
     [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y * 1.2) => :Rᵢ, # This would be the incident radiation
     [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y) => :Rₛ,
@@ -89,7 +74,11 @@ transform!(
     (x -> 0.3) => :d,
     ignore_nothing = true
 )
-```
+
+# ╔═╡ 59b1cdf2-d868-4fe3-87c3-700afd2cee0a
+md"""
+!!! note
+	We use `transform` instead of `transform!` here to make a copy of the mtg after modification because we shouldn't mutate objects in Pluto notebooks.
 """
 
 # ╔═╡ 0ce68c8e-13a2-499d-86c1-59ea31c69f42
@@ -98,24 +87,42 @@ md"""
 """
 
 # ╔═╡ 37f50a97-2842-4b12-ab70-ab56de09af0b
-md"""
-```julia
-run!(mtg, models, weather)
-```
-"""
+begin
+	mtg_sim = deepcopy(mtg2)
+	# Initialize the models inside the MTG:
+	init_mtg_models!(mtg_sim, models, length(weather), verbose = false)
+	# Make the simulation:
+	run!(mtg_sim, weather)
+end
 
 # ╔═╡ 5376ccaf-a41a-4ad2-85a8-8b4badd4d938
 md"""
-## Quickly benchmarking
+## Benchmarking
 
-For sake of simplicity, we benchmark here in Sequential mode (i.e. no parallelization).
+Let's make a benchmark of the simulation on the whole coffee tree. Note that benchmarking shouldn't be done in a Pluto notebook, but this gives an idea of how fast we can make a simulation.
 """
 
-# ╔═╡ b22d0e7c-aeaf-4c28-9cf9-5368a4384cf3
+# ╔═╡ 801bb336-133d-4b2e-9ea7-9ea390451e59
+begin
+	mtg_sim_bench = deepcopy(mtg2)
+	# Initialize the models inside the MTG:
+	init_mtg_models!(mtg_sim_bench, models, length(weather), verbose = false)
+	# Make the simulation:
+	times = @benchmark run!($mtg_sim, $weather) 
+end
+
+# ╔═╡ aa546a40-3cd4-47c5-8ba8-020861402418
+nleaves = length(findall(traverse(mtg_sim_bench, node -> node.MTG.symbol == "Leaf")))
+
+# ╔═╡ 69739263-1458-4180-ac58-0901addca0ab
+n_meteo_steps = length(weather)
+
+# ╔═╡ 8cbf8ad6-916a-4114-9123-46fe2db1be11
+total_time_s = sum(times.times) / length(times.times) * 1e-9
+
+# ╔═╡ a299a6d8-ead4-48a4-a346-c933c58a16db
 md"""
-```julia
-B = @benchmark run!($mtg, $models, $weather,executor=SequentialEx())
-```
+The simulation takes **$(round((total_time_s * 1e6) / (nleaves * n_meteo_steps), digits = 1)) μs** to run for each leaf, and **$(round(total_time_s, digits = 2)) s** for the whole plant on all time-steps.
 """
 
 # ╔═╡ 840c1748-0502-4d33-ad81-bf8047b58037
@@ -123,32 +130,25 @@ md"""
 ## Plotting the result in 3D
 """
 
-# ╔═╡ 2fcdc6ba-0b5a-450a-ac4d-b013c9dfa2fd
-md"""
-```julia
-begin
-	transform!(
-    mtg,
-    :Tₗ => (x -> x[1]) => :Tₗ_1,
-    ignore_nothing = true
-)
-
-	f, ax, p = viz(mtg, color = :Tₗ_1)
-	colorbar(f[1, 2], p)
+# ╔═╡ dd6a03d0-b0e9-45df-aee8-abc627497606
+f = let
+	f = Figure()
+	ax = Axis3(f[1,1], aspect=:data)
+	p = viz!(ax, mtg_sim, color = :Tₗ, index = 1)
+	colorbar(f[1,2], p)
 	f
 end
-```
-"""
 
-# ╔═╡ 35962e6e-0355-4fe1-b5b8-2d009b3e799e
-md"""
-![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/out/3d_coffee.png?raw=true)
-"""
+# ╔═╡ b7530979-76f5-4a0b-a23e-24f4e6d55aac
+save("out/3d_coffee.png", f)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 FLoops = "cc61a311-1640-44b5-9fba-1b764f453329"
 MultiScaleTreeGraph = "dd4a991b-8a45-4075-bede-262ee62d5583"
@@ -156,30 +156,42 @@ PlantBiophysics = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
 PlantGeom = "5edaa67e-25db-4eb9-bf81-05d793b2238d"
 PlantMeteo = "4630fe09-e0fb-4da5-a846-781cb73437b6"
 PlantSimEngine = "9a576370-710b-4269-adf9-4f603a9c6423"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 BenchmarkTools = "~1.3.2"
+CSV = "~0.10.9"
+CairoMakie = "~0.10.4"
+DataFrames = "~1.5.0"
 FLoops = "~0.2.1"
-MultiScaleTreeGraph = "~0.9.0"
-PlantBiophysics = "~0.9.0"
-PlantGeom = "~0.5.1"
-PlantMeteo = "~0.3.0"
-PlantSimEngine = "~0.5.1"
+MultiScaleTreeGraph = "~0.10.1"
+PlantBiophysics = "~0.9.2"
+PlantGeom = "~0.5.3"
+PlantMeteo = "~0.3.1"
+PlantSimEngine = "~0.6.1"
+PlutoUI = "~0.7.50"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.0"
+julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "427b8e92a8b55c8c8fae65c05a770f2fe4060f92"
+project_hash = "51690df679579f86f526a435808b81ea57aaa8fb"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
 git-tree-sha1 = "16b6dbc4cf7caee4e1e75c49485ec67b667098a0"
 uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 version = "1.3.1"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.1.4"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -215,9 +227,9 @@ version = "0.2.0"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra", "Requires", "SnoopPrecompile", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "a89acc90c551067cd84119ff018619a1a76c6277"
+git-tree-sha1 = "38911c7737e123b28182d89027f4216cfc8a9da7"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.2.1"
+version = "7.4.3"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -290,6 +302,18 @@ git-tree-sha1 = "c700cce799b51c9045473de751e9319bdd1c6e94"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 version = "0.10.9"
 
+[[deps.Cairo]]
+deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
+git-tree-sha1 = "d0b3f8b4ad16cb0a2988c6788646a5e6a17b6b1b"
+uuid = "159f3aea-2a34-519c-b102-8c37f9878175"
+version = "1.0.5"
+
+[[deps.CairoMakie]]
+deps = ["Base64", "Cairo", "Colors", "FFTW", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "SHA", "SnoopPrecompile"]
+git-tree-sha1 = "2aba202861fd2b7603beb80496b6566491229855"
+uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+version = "0.10.4"
+
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
 git-tree-sha1 = "4b859a208b2397a7a623a03449e4636bdb17bcf2"
@@ -328,9 +352,9 @@ version = "1.3.1"
 
 [[deps.CodeTracking]]
 deps = ["InteractiveUtils", "UUIDs"]
-git-tree-sha1 = "d57c99cc7e637165c81b30eb268eabe156a45c49"
+git-tree-sha1 = "0683f086e2ef8e2fdacd3f246b35c59e7088b283"
 uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
-version = "1.2.2"
+version = "1.3.0"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -483,9 +507,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "da9e1a9058f8d3eec3a8c9fe4faacfb89180066b"
+git-tree-sha1 = "13027f188d26206b9e7b863036f87d2f2e7d013a"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.86"
+version = "0.25.87"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -580,15 +604,15 @@ uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
-git-tree-sha1 = "3b245d1e50466ca0c9529e2033a3c92387c59c2f"
+git-tree-sha1 = "fc86b4fd3eff76c3ce4f5e96e2fdfa6282722885"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "0.13.9"
+version = "1.0.0"
 
 [[deps.FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "Setfield", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "ed1b56934a2f7a65035976985da71b6a65b4f2cf"
+git-tree-sha1 = "03fcb1c42ec905d15b305359603888ec3e65f886"
 uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
-version = "2.18.0"
+version = "2.19.0"
 
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
@@ -650,9 +674,9 @@ version = "0.1.4"
 
 [[deps.GeoInterface]]
 deps = ["Extents"]
-git-tree-sha1 = "e07a1b98ed72e3cdd02c6ceaab94b8a606faca40"
+git-tree-sha1 = "0eb6de0b312688f852f347171aba888658e29f20"
 uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
-version = "1.2.1"
+version = "1.3.0"
 
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "GeoInterface", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
@@ -720,10 +744,28 @@ uuid = "eafb193a-b7ab-5a9e-9068-77385905fa72"
 version = "0.5.2"
 
 [[deps.HypergeometricFunctions]]
-deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions", "Test"]
-git-tree-sha1 = "709d864e3ed6e3545230601f94e11ebc65994641"
+deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
+git-tree-sha1 = "d926e9c297ef4607866e8ef5df41cde1a642917f"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.11"
+version = "0.3.14"
+
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.4"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.2"
 
 [[deps.ImageAxes]]
 deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
@@ -992,6 +1034,11 @@ git-tree-sha1 = "00f475f85c50584b12268675072663dfed5594b2"
 uuid = "2fda8390-95c7-5789-9bda-21331edee243"
 version = "0.13.0"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
 git-tree-sha1 = "2ce8695e1e699b68702c03402672a69f54b8aca9"
@@ -1011,15 +1058,15 @@ version = "0.5.10"
 
 [[deps.Makie]]
 deps = ["Animations", "Base64", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "Contour", "Distributions", "DocStringExtensions", "Downloads", "FFMPEG", "FileIO", "FixedPointNumbers", "Formatting", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageIO", "InteractiveUtils", "IntervalSets", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MakieCore", "Markdown", "Match", "MathTeXEngine", "MiniQhull", "Observables", "OffsetArrays", "Packing", "PlotUtils", "PolygonOps", "Printf", "Random", "RelocatableFolders", "Setfield", "Showoff", "SignedDistanceFields", "SnoopPrecompile", "SparseArrays", "StableHashTraits", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "TriplotBase", "UnicodeFun"]
-git-tree-sha1 = "274fa9c60a10b98ab8521886eb4fe22d257dca65"
+git-tree-sha1 = "74657542dc85c3b72b8a5a9392d57713d8b7a999"
 uuid = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-version = "0.19.2"
+version = "0.19.4"
 
 [[deps.MakieCore]]
 deps = ["Observables"]
-git-tree-sha1 = "2c3fc86d52dfbada1a2e5e150e50f06c30ef149c"
+git-tree-sha1 = "9926529455a331ed73c19ff06d16906737a876ed"
 uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
-version = "0.6.2"
+version = "0.6.3"
 
 [[deps.MappedArrays]]
 git-tree-sha1 = "e8b359ef06ec72e8c030463fe02efe5527ee5142"
@@ -1037,9 +1084,9 @@ version = "1.2.0"
 
 [[deps.MathTeXEngine]]
 deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "Test", "UnicodeFun"]
-git-tree-sha1 = "f04120d9adf4f49be242db0b905bea0be32198d1"
+git-tree-sha1 = "64890e1e8087b71c03bd6b8af99b49c805b2a78d"
 uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
-version = "0.5.4"
+version = "0.5.5"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "Random", "Sockets"]
@@ -1054,21 +1101,21 @@ version = "2.28.0+0"
 
 [[deps.MeshViz]]
 deps = ["CategoricalArrays", "ColorSchemes", "Colors", "Makie", "Meshes", "ScientificTypes", "Tables"]
-git-tree-sha1 = "0b8a71b1c14c41faecc6fc07be25499d38f5fe63"
+git-tree-sha1 = "7b88fd905980a5eac7761a26ee850653dd8b4301"
 uuid = "9ecf9c4f-6e5a-4b5e-83ae-06f2c7a661d8"
-version = "0.7.4"
+version = "0.7.5"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "IterTools", "LinearAlgebra", "NearestNeighbors", "Random", "ReferenceFrameRotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "8350fc1b783af43c4fb7491acca5dbe2bc5dd8ec"
+git-tree-sha1 = "5cd413ae2079f4a98aa8b506add26a1656cb0de5"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.28.0"
+version = "0.28.1"
 
 [[deps.MetaGraphsNext]]
-deps = ["Graphs", "JLD2"]
-git-tree-sha1 = "558cdb20e87c94b1ef01e671dc3478a192c212c2"
+deps = ["Graphs", "JLD2", "SimpleTraits"]
+git-tree-sha1 = "500e526a1f76b73ab7522f9580f86abef895de68"
 uuid = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
-version = "0.4.1"
+version = "0.5.0"
 
 [[deps.MicroCollections]]
 deps = ["BangBang", "InitialValues", "Setfield"]
@@ -1103,9 +1150,9 @@ version = "2022.2.1"
 
 [[deps.MultiScaleTreeGraph]]
 deps = ["AbstractTrees", "DataFrames", "Dates", "DelimitedFiles", "Graphs", "MetaGraphsNext", "MutableNamedTuples", "OrderedCollections", "Printf", "SHA", "XLSX"]
-git-tree-sha1 = "030ce31bf8941c79706f30800346f610cb34e3ec"
+git-tree-sha1 = "4f848dd8746f72efd92e67c28262a7cbddbfaf62"
 uuid = "dd4a991b-8a45-4075-bede-262ee62d5583"
-version = "0.9.0"
+version = "0.10.1"
 
 [[deps.MutableNamedTuples]]
 git-tree-sha1 = "0faaabea6ebbfde9a5a01455f851009fb2603aac"
@@ -1221,9 +1268,9 @@ uuid = "91d4177d-7536-5919-b921-800302f37372"
 version = "1.3.2+0"
 
 [[deps.OrderedCollections]]
-git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
+git-tree-sha1 = "d321bf2de576bf25ec4d3e4360faca399afca282"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.4.1"
+version = "1.6.0"
 
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1253,6 +1300,12 @@ deps = ["OffsetArrays"]
 git-tree-sha1 = "03a7a85b76381a3d04c7a1656039197e70eda03d"
 uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
 version = "0.5.11"
+
+[[deps.Pango_jll]]
+deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "84a314e3926ba9ec66ac097e3635e270986b0f10"
+uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
+version = "1.50.9+0"
 
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]
@@ -1285,33 +1338,39 @@ version = "0.3.2"
 
 [[deps.PlantBiophysics]]
 deps = ["CSV", "DataFrames", "Dates", "LsqFit", "OrderedCollections", "PlantMeteo", "PlantSimEngine", "RecipesBase", "Statistics", "YAML"]
-git-tree-sha1 = "fea5e0f47fd29eeaf02d0df92837c0ec1f3cb906"
+git-tree-sha1 = "a3c53ea2f575c82905fbce63df7c4c219518cc48"
 uuid = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
-version = "0.9.0"
+version = "0.9.2"
 
 [[deps.PlantGeom]]
 deps = ["ColorSchemes", "Colors", "CoordinateTransformations", "EzXML", "LinearAlgebra", "Makie", "MeshViz", "Meshes", "MultiScaleTreeGraph", "Observables", "RecipesBase", "StaticArrays"]
-git-tree-sha1 = "d66d9a1356fb088e490fbbbba3dc3ade082697a8"
+git-tree-sha1 = "a0a608c621fb778e2f6393407d96c477c1df7fee"
 uuid = "5edaa67e-25db-4eb9-bf81-05d793b2238d"
-version = "0.5.1"
+version = "0.5.3"
 
 [[deps.PlantMeteo]]
 deps = ["CSV", "DataAPI", "DataFrames", "Dates", "HTTP", "JSON", "Statistics", "Tables", "Term", "YAML"]
-git-tree-sha1 = "b1f742819dfee85457a139f2fc9af79bf0a86a52"
+git-tree-sha1 = "426a28dcbbe2cb59aec71411a75c1c38c87e3f24"
 uuid = "4630fe09-e0fb-4da5-a846-781cb73437b6"
-version = "0.3.0"
+version = "0.3.1"
 
 [[deps.PlantSimEngine]]
 deps = ["AbstractTrees", "CSV", "DataFrames", "FLoops", "Markdown", "MultiScaleTreeGraph", "PlantMeteo", "Statistics", "Tables", "Term"]
-git-tree-sha1 = "4c851a6af89819f213afd8b30f84d5d605efcd44"
+git-tree-sha1 = "81254f7e63412cea24faeccbe3047da366b63388"
 uuid = "9a576370-710b-4269-adf9-4f603a9c6423"
-version = "0.5.1"
+version = "0.6.1"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "SnoopPrecompile", "Statistics"]
 git-tree-sha1 = "c95373e73290cf50a8a22c3375e4625ded5c5280"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.3.4"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "5bb5129fdd62a2bbbe17c2756932259acf467386"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.50"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -1571,9 +1630,9 @@ version = "0.1.1"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "StaticArraysCore", "Statistics"]
-git-tree-sha1 = "7756ce473bd10b67245bdebdc8d8670a85f6230b"
+git-tree-sha1 = "b8d897fe7fa688e93aef573711cb207c08c9e11e"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.5.18"
+version = "1.5.19"
 
 [[deps.StaticArraysCore]]
 git-tree-sha1 = "6b7ba252635a5eff6a0b0664a41ee140a1c9e72a"
@@ -1592,9 +1651,9 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "f9af7f195fb13589dd2e2d57fdb401717d2eb1f6"
+git-tree-sha1 = "45a7769a04a3cf80da1c1c7c60caf932e6f4c9f7"
 uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.5.0"
+version = "1.6.0"
 
 [[deps.StatsBase]]
 deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
@@ -1649,7 +1708,7 @@ version = "1.10.1"
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-version = "1.10.0"
+version = "1.10.1"
 
 [[deps.TensorCore]]
 deps = ["LinearAlgebra"]
@@ -1669,9 +1728,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
-git-tree-sha1 = "7e6b0e3e571be0b4dd4d2a9a3a83b65c04351ccc"
+git-tree-sha1 = "8621f5c499a8aa4aa970b1ae381aae0ef1576966"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
-version = "0.6.3"
+version = "0.6.4"
 
 [[deps.TranscodingStreams]]
 deps = ["Random", "Test"]
@@ -1690,6 +1749,11 @@ deps = ["AbstractTrees"]
 git-tree-sha1 = "2412fb54902b0063c69c2bcfbec6b571120cc856"
 uuid = "28dd2a49-a57a-4bfb-84ca-1a49db9b96b8"
 version = "0.1.2"
+
+[[deps.Tricks]]
+git-tree-sha1 = "aadb748be58b492045b4f56166b5188aa63ce549"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.7"
 
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
@@ -1743,9 +1807,9 @@ version = "1.6.1"
 
 [[deps.XLSX]]
 deps = ["Artifacts", "Dates", "EzXML", "Printf", "Tables", "ZipFile"]
-git-tree-sha1 = "ccd1adf7d0b22f762e1058a8d73677e7bd2a7274"
+git-tree-sha1 = "d6af50e2e15d32aff416b7e219885976dc3d870f"
 uuid = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
-version = "0.8.4"
+version = "0.9.0"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
@@ -1910,13 +1974,18 @@ version = "3.5.0+0"
 # ╟─c13c9dd7-3a8c-436a-9520-c638a76b7135
 # ╠═00877758-9349-4aa6-a2c8-ac2e50e150a0
 # ╟─e9293038-6179-481e-93c9-a619bcbce8ca
-# ╟─f02f400c-cc1f-4798-8045-e6fb93ec5647
+# ╠═f02f400c-cc1f-4798-8045-e6fb93ec5647
+# ╟─59b1cdf2-d868-4fe3-87c3-700afd2cee0a
 # ╟─0ce68c8e-13a2-499d-86c1-59ea31c69f42
 # ╠═37f50a97-2842-4b12-ab70-ab56de09af0b
 # ╟─5376ccaf-a41a-4ad2-85a8-8b4badd4d938
-# ╠═b22d0e7c-aeaf-4c28-9cf9-5368a4384cf3
+# ╠═801bb336-133d-4b2e-9ea7-9ea390451e59
+# ╠═aa546a40-3cd4-47c5-8ba8-020861402418
+# ╠═69739263-1458-4180-ac58-0901addca0ab
+# ╠═8cbf8ad6-916a-4114-9123-46fe2db1be11
+# ╟─a299a6d8-ead4-48a4-a346-c933c58a16db
 # ╟─840c1748-0502-4d33-ad81-bf8047b58037
-# ╟─2fcdc6ba-0b5a-450a-ac4d-b013c9dfa2fd
-# ╟─35962e6e-0355-4fe1-b5b8-2d009b3e799e
+# ╠═dd6a03d0-b0e9-45df-aee8-abc627497606
+# ╠═b7530979-76f5-4a0b-a23e-24f4e6d55aac
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
