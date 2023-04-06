@@ -120,7 +120,7 @@ meteo = let
 	    :Cₐ => (x -> x ± 10.0) => :Cₐ
 	)
 	Weather(meteo_df, (site = "Tumbarumba",))
-end
+end;
 
 # ╔═╡ 921ee23d-3159-4a83-b29d-87541c2c10d6
 md"""
@@ -460,7 +460,7 @@ fig = let
 end
 
 # ╔═╡ 518deea7-f7a5-4c41-87b1-2ecade7eadb4
-save("out/figure_day.png", fig, px_per_unit=3)
+save("out/figure_day.png", fig, px_per_unit=3);
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """

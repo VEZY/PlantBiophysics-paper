@@ -12,4 +12,4 @@ The website is available here: https://vezy.github.io/PlantBiophysics-paper/
 - [x] Performance figure
 - [x] Make Pluto notebook for global data
 - [x] Adapt Pluto notebook for day evaluation with Makie
-- [ ] Update with PlantBiophysics.jl 0.8.0 (especially daily_evaluation Pluto notebook)
+- [x] Update with PlantBiophysics.jl 0.8.0 (especially daily_evaluation Pluto notebook)
