@@ -27,7 +27,7 @@ md"""
 """
 
 # ╔═╡ ead14a9c-b16a-4656-ab7e-ace73762c24f
-df_res = CSV.read("out/df_res.csv", DataFrame)
+df_res = CSV.read("df_res.csv", DataFrame)
 
 # ╔═╡ bfc78da1-916e-4296-8607-d03516549f57
 md"""
