@@ -221,7 +221,7 @@ function plot_benchmark_Makie(
     time_PE,
     time_LG;
     bins=220,
-    backgroundcolor=:transparent,
+    backgroundcolor=:transparent
 )
 
     size_inches = (6.7, 5)
@@ -331,7 +331,7 @@ fig = plot_benchmark_Makie(
     backgroundcolor=:white,
 )
 
-save("out/benchmark_each_time_steps.png", fig, px_per_unit=6)
+save("benchmark_each_time_steps.png", fig, px_per_unit=6)
 
 # Write overall timings:
 df = DataFrame(
