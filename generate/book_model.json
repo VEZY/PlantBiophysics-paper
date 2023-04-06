@@ -1,0 +1,58 @@
+[
+    {
+        "title": "Pre-requisite",
+        "contents": [
+            {
+                "name": "Julia Basics",
+                "notebook_path": "notebooks/basic_syntax.jl",
+                "video_id": "",
+                "preview_image_url": ""
+            }
+        ]
+    },
+    {
+        "title": "Evaluation",
+        "contents": [
+            {
+                "name": "Global evaluation",
+                "notebook_path": "notebooks/evaluation/Fig3_PlantBiophysics_global_evaluation.jl",
+                "video_id": "",
+                "preview_image_url": ""
+            },
+            {
+                "name": "Taylor diagram",
+                "notebook_path": "notebooks/evaluation/Fig4_PlantBiophysics_TaylorDiag.jl",
+                "video_id": "",
+                "preview_image_url": ""
+            },
+            {
+                "name": "Dynamic evaluation",
+                "notebook_path": "notebooks/evaluation/Fig6_PlantBiophysics_day_evaluation.jl",
+                "video_id": "",
+                "preview_image_url": ""
+            }
+        ]
+    },
+    {
+        "title": "Performance",
+        "contents": [
+            {
+                "name": "Benchmark",
+                "notebook_path": "notebooks/performance/Fig5_PlantBiophysics_performance.jl",
+                "video_id": "",
+                "preview_image_url": ""
+            }
+        ]
+    },
+    {
+        "title": "Up-scaling",
+        "contents": [
+            {
+                "name": "Simulation of a plant",
+                "notebook_path": "notebooks/upscaling/Fig7_PlantBiophysics_3D_coffee_tree.jl",
+                "video_id": "",
+                "preview_image_url": ""
+            }
+        ]
+    }
+]
