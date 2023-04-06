@@ -16,9 +16,9 @@ This Pluto notebook presents the computation of Fig. 4 from the scientific artic
 
 # ╔═╡ e0d242b5-5277-4709-8dce-d6232455cc18
 begin
-	using Plots, CSV, DataFrames, Colors, Measures,TaylorDiag, PlotlyJS
-	using PlantBiophysics
-	plotlyjs()
+    using Plots, CSV, DataFrames, Colors, Measures, TaylorDiag, PlotlyJS
+    using PlantBiophysics
+    plotlyjs()
 end
 
 # ╔═╡ 60c3d4a6-bccf-439b-9a62-57c09ce0273e
@@ -45,28 +45,28 @@ Standard deviations are normalized in order to represent all variables ($A$, $E$
 
 # ╔═╡ b82826f4-431d-4a39-ba3c-df66e7c21644
 begin
-	VARS=["A","E","Tl","Gs"]
-	Ss=zeros((4,3))
-	Cs=zeros((4,3))
+    VARS = ["A", "E", "Tl", "Gs"]
+    Ss = zeros((4, 3))
+    Cs = zeros((4, 3))
 
-	for i in eachindex(VARS)
-		var=VARS[i]
+    for i in eachindex(VARS)
+        var = VARS[i]
 
-		# Loading observations and simulations for all three packages
-		obs   = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).measured
-		modPB = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"PlantBiophysics.jl")==0),df_res).simulated
-		modPE = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"plantecophys")==0),df_res).simulated
-		modLG = filter(x->(cmp.(x.variable,var)==0)&(cmp.(x.origin,"LeafGasExchange.jl")==0),df_res).simulated
+        # Loading observations and simulations for all three packages
+        obs = filter(x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0), df_res).measured
+        modPB = filter(x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "PlantBiophysics.jl") == 0), df_res).simulated
+        modPE = filter(x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "plantecophys") == 0), df_res).simulated
+        modLG = filter(x -> (cmp.(x.variable, var) == 0) & (cmp.(x.origin, "LeafGasExchange.jl") == 0), df_res).simulated
 
-		# Computing standard deviations
-		S = [STD(modPB), STD(modPE), STD(modLG)]
-		S = [S[i]/STD(obs) for i in eachindex(S)] # Normalization
-		Ss[i,:]=S
+        # Computing standard deviations
+        S = [STD(modPB), STD(modPE), STD(modLG)]
+        S = [S[i] / STD(obs) for i in eachindex(S)] # Normalization
+        Ss[i, :] = S
 
-		# Computing correlations
-		C = [COR(obs,modPB),COR(obs,modPE),COR(obs,modLG)]
-		Cs[i,:]=C
-	end
+        # Computing correlations
+        C = [COR(obs, modPB), COR(obs, modPE), COR(obs, modLG)]
+        Cs[i, :] = C
+    end
 end
 
 # ╔═╡ ed0321f3-5747-47d7-8ff8-8c6262eb0fd8
@@ -81,29 +81,29 @@ md"""
 
 # ╔═╡ e3bb0156-4d59-4fc1-81e3-ef724faa7657
 begin
-	# Colors for each package
-	col_pb = (244, 124, 124)    # PlantBiophysics.jl
-	col_lg = (93, 174, 139)     # LeafGasExchange.jl
-	col_pe = (112, 161, 215)    # plantecophys
-	transparency_col = 0.6      # Transparency for edges
-	transparency_fill = 0.4     # Transparency for fill
-	color_pb = rgb(col_pb..., transparency_col)
-	color_pe = rgb(col_lg..., transparency_col)
-	color_lg = rgb(col_pe..., transparency_col)
-	fill_pb = rgb(col_pb..., transparency_fill)
-	fill_pe = rgb(col_lg..., transparency_fill)
-	fill_lg = rgb(col_pe..., transparency_fill)
-	
-	cols = [fill_pb,fill_lg,fill_pe] 
-	strkcols = [color_pb,color_lg,color_pe] 
-	
-	# Parameters for fitting
-	msize = 7                   # Marker size
-	stw = 1.5                   
-	legend_lab_size=10
-	xleg = 1.6                  # x-position for variables legend
-	yleg = 0.4                  # y-position for variables legend
-	nms = ["PlantBiophysics.jl","plantecophys","LeafGasExchange.jl"]
+    # Colors for each package
+    col_pb = (244, 124, 124)    # PlantBiophysics.jl
+    col_lg = (93, 174, 139)     # LeafGasExchange.jl
+    col_pe = (112, 161, 215)    # plantecophys
+    transparency_col = 0.6      # Transparency for edges
+    transparency_fill = 0.4     # Transparency for fill
+    color_pb = rgb(col_pb..., transparency_col)
+    color_pe = rgb(col_lg..., transparency_col)
+    color_lg = rgb(col_pe..., transparency_col)
+    fill_pb = rgb(col_pb..., transparency_fill)
+    fill_pe = rgb(col_lg..., transparency_fill)
+    fill_lg = rgb(col_pe..., transparency_fill)
+
+    cols = [fill_pb, fill_lg, fill_pe]
+    strkcols = [color_pb, color_lg, color_pe]
+
+    # Parameters for fitting
+    msize = 7                   # Marker size
+    stw = 1.5
+    legend_lab_size = 10
+    xleg = 1.6                  # x-position for variables legend
+    yleg = 0.4                  # y-position for variables legend
+    nms = ["PlantBiophysics.jl", "plantecophys", "LeafGasExchange.jl"]
 end
 
 
@@ -116,35 +116,35 @@ Using the same Taylor diagram for all the data is correct thanks to STD normaliz
 
 # ╔═╡ c55aa11f-8271-4948-8bbf-994e4ae0a77e
 begin
-	# Plotting initial Taylor diagram
-	fig = taylordiagram([1],[1],[""],normalize=true,ang=pi/2,rmsd_circ=false,figsize=600)
+    # Plotting initial Taylor diagram
+    fig = taylordiagram([1], [1], [""], normalize=true, ang=pi / 2, rmsd_circ=false, figsize=600)
 
-	# Adding data label
-	Plots.scatter!([1],[0],label="Data",markerstrokecolor=:black,markercolor=:black)
-	plot!(size = (600,600))
-	mks=[:circle, :rect, :diamond, :utriangle]
-	
+    # Adding data label
+    Plots.scatter!([1], [0], label="Data", markerstrokecolor=:black, markercolor=:black)
+    plot!(size=(600, 600))
+    mks = [:circle, :rect, :diamond, :utriangle]
 
-	for n in eachindex(mks)
-		rho   = Ss[n,:]
-		theta = to_polar(Cs[n,:])
-		    for i in 1:length(theta)
-				if n==1
-					lab=nms[i]
-				else
-					lab=""
-				end
-		        Plots.scatter!([cos.(theta[i]).*rho[i]],[sin.(theta[i]).*rho[i]],markerstrokecolor=strkcols[i],markercolor=cols[i],markershape=mks[n],markersize=msize,markerstrokewidth=stw,label=lab)
-		    end
-		plot!(fontfamily="NotoSans-Regular.ttf",fontsize=12)
-		scatter!([xleg],[yleg-0.1*(n-1)], markerstrokecolor=:grey,markercolor=:grey,markershape=mks[n],markersize=msize,markerstrokewidth=stw, markerstrokealpha=0.6,markeralpha=0.4,label="")
-		annotate!(xleg+0.05, yleg-0.1*(n-1)-0.005, text(string(VARS[n]), :left, legend_lab_size))
-	end
-	plot!(legend=:topright, foreground_color_legend = nothing)
+
+    for n in eachindex(mks)
+        rho = Ss[n, :]
+        theta = to_polar(Cs[n, :])
+        for i in 1:length(theta)
+            if n == 1
+                lab = nms[i]
+            else
+                lab = ""
+            end
+            Plots.scatter!([cos.(theta[i]) .* rho[i]], [sin.(theta[i]) .* rho[i]], markerstrokecolor=strkcols[i], markercolor=cols[i], markershape=mks[n], markersize=msize, markerstrokewidth=stw, label=lab)
+        end
+        plot!(fontfamily="NotoSans-Regular.ttf", fontsize=12)
+        scatter!([xleg], [yleg - 0.1 * (n - 1)], markerstrokecolor=:grey, markercolor=:grey, markershape=mks[n], markersize=msize, markerstrokewidth=stw, markerstrokealpha=0.6, markeralpha=0.4, label="")
+        annotate!(xleg + 0.05, yleg - 0.1 * (n - 1) - 0.005, text(string(VARS[n]), :left, legend_lab_size))
+    end
+    plot!(legend=:topright, foreground_color_legend=nothing)
 end
 
 # ╔═╡ b0da1851-55c4-4b14-87c7-8dc4ec5d5a99
-Plots.savefig(fig, "./out/figure_global_simulation_taylor.png")
+Plots.savefig(fig, "figure_global_simulation_taylor.png")
 
 # ╔═╡ fed09862-a99d-4aa7-b8ae-379f74b615e6
 md"""
@@ -163,21 +163,21 @@ The $\theta$ axis represents correlation, i.e. the pattern similarity between ob
 
 # ╔═╡ 33963fb9-05e0-4133-8b7f-3e8f0d9f6e3b
 begin
-	Lx=100
-	x=range(0,10,Lx)
-	obs=sin.(x)
-	mod_lowSTD=1.2*sin.(x)+sin.(x).*rand(Lx)*0.2
-	mod_verylowSTD=1.6*sin.(x)+sin.(x).*rand(Lx)*0.2
-	mod_lowCOR=sin.(x.+0.3).+sin.(x).*rand(Lx)*0.2
-	mod_verylowCOR=sin.(x.+0.6).+sin.(x).*rand(Lx)*0.2
+    Lx = 100
+    x = range(0, 10, Lx)
+    obs = sin.(x)
+    mod_lowSTD = 1.2 * sin.(x) + sin.(x) .* rand(Lx) * 0.2
+    mod_verylowSTD = 1.6 * sin.(x) + sin.(x) .* rand(Lx) * 0.2
+    mod_lowCOR = sin.(x .+ 0.3) .+ sin.(x) .* rand(Lx) * 0.2
+    mod_verylowCOR = sin.(x .+ 0.6) .+ sin.(x) .* rand(Lx) * 0.2
 
-	Plots.plot(x,obs,label="Obs.",linewidth=3)
-	plot!(x,mod_lowSTD,label="Mod. with low STD resolution")
-	plot!(x,mod_verylowSTD,label="Mod. with very low STD resolution")
-	plot!(x,mod_lowCOR,label="Mod. with low correlation resolution")
-	plot!(x,mod_verylowCOR,label="Mod. with very low correlation resolution")
-	plot!(legend=:outertopright)
-	plot!(size = (650,400))
+    Plots.plot(x, obs, label="Obs.", linewidth=3)
+    plot!(x, mod_lowSTD, label="Mod. with low STD resolution")
+    plot!(x, mod_verylowSTD, label="Mod. with very low STD resolution")
+    plot!(x, mod_lowCOR, label="Mod. with low correlation resolution")
+    plot!(x, mod_verylowCOR, label="Mod. with very low correlation resolution")
+    plot!(legend=:outertopright)
+    plot!(size=(650, 400))
 end
 
 # ╔═╡ 2662a603-b92d-4b3d-87a4-a440d041fb38
@@ -194,11 +194,11 @@ Each "modeled" dataset is designed to illustrate behaviours on the Taylor diagra
 
 # ╔═╡ 69b9ff0d-7ffd-4014-bcdb-2b8daee6185f
 begin
-	nmes=["Obs","LowSTD","VeryLowSTD","LowCOR","VeryLowCOR"]
-	S=[STD(obs),STD(mod_lowSTD),STD(mod_verylowSTD),STD(mod_lowCOR),STD(mod_verylowCOR)]
-	S=S/STD(obs)
-	C=[COR(obs,obs),COR(obs,mod_lowSTD),COR(obs,mod_verylowSTD),COR(obs,mod_lowCOR),COR(obs,mod_verylowCOR)]
-	p = taylordiagram(S,C,nmes,rmsd_circ=false,normalize=true)
+    nmes = ["Obs", "LowSTD", "VeryLowSTD", "LowCOR", "VeryLowCOR"]
+    S = [STD(obs), STD(mod_lowSTD), STD(mod_verylowSTD), STD(mod_lowCOR), STD(mod_verylowCOR)]
+    S = S / STD(obs)
+    C = [COR(obs, obs), COR(obs, mod_lowSTD), COR(obs, mod_verylowSTD), COR(obs, mod_lowCOR), COR(obs, mod_verylowCOR)]
+    p = taylordiagram(S, C, nmes, rmsd_circ=false, normalize=true)
 end
 
 # ╔═╡ befd45c7-ef31-4548-9c25-a2ae6c8965c7

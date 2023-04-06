@@ -315,7 +315,7 @@ md"""
 """
 
 # ╔═╡ 518deea7-f7a5-4c41-87b1-2ecade7eadb4
-save("out/figure_day.png", fig, px_per_unit=3);
+save("figure_day.png", fig, px_per_unit=3);
 
 # ╔═╡ 87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
 md"""

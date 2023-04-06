@@ -29,10 +29,10 @@ using MonteCarloMeasurements
 
 # ╔═╡ 74ae23d5-71bc-4ad8-acdf-0a38a1b129bd
 begin
-	using CSV, Statistics, DataFrames, Downloads, Dates
-	using AlgebraOfGraphics, CairoMakie, Colors
-	using PlantBiophysics, PlantSimEngine, PlantMeteo
-	using PlutoUI
+    using CSV, Statistics, DataFrames, Downloads, Dates
+    using AlgebraOfGraphics, CairoMakie, Colors
+    using PlantBiophysics, PlantSimEngine, PlantMeteo
+    using PlutoUI
 end
 
 # ╔═╡ aff7314d-7a8a-4a47-8a77-252e96377e9c
@@ -57,20 +57,20 @@ The data comes from Medlyn et al. (2015), see [here](https://figshare.com/articl
 """
 
 # ╔═╡ 3c5bcd7e-87fb-4aef-86d8-326921b4423c
-df = let 
-	df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402635"))
+df = let
+    df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402635"))
 
-	# Computing DateTime from Date and Time:
-	transform!(
-		df_, 
-		[:Date, :Time] => ((x, y) -> Date.(x, dateformat"Y/m/d") .+ y) => :Date
-	)
+    # Computing DateTime from Date and Time:
+    transform!(
+        df_,
+        [:Date, :Time] => ((x, y) -> Date.(x, dateformat"Y/m/d") .+ y) => :Date
+    )
 
-	# Initializing the columns:
-	df_.VcMaxRef .= df_.JMaxRef .= df_.RdRef .= df_.TPURef .= df_.g0 .= df_.g1 .= df_.Tᵣ .= 0.0
-	df_.AsimPB .= df_.EsimPB .= df_.TlsimPB .= df_.GssimPB .= 0.0
-	df_.VcMaxRefPE .= df_.JMaxRefPE .= df_.RdRefPE .= df_.TPURefPE .= df_.g0PE .= df_.g1PE .= 0.0
-	df_
+    # Initializing the columns:
+    df_.VcMaxRef .= df_.JMaxRef .= df_.RdRef .= df_.TPURef .= df_.g0 .= df_.g1 .= df_.Tᵣ .= 0.0
+    df_.AsimPB .= df_.EsimPB .= df_.TlsimPB .= df_.GssimPB .= 0.0
+    df_.VcMaxRefPE .= df_.JMaxRefPE .= df_.RdRefPE .= df_.TPURefPE .= df_.g0PE .= df_.g1PE .= 0.0
+    df_
 end
 
 # ╔═╡ e8961d19-85d4-484b-a029-359a9dbea800
@@ -82,23 +82,23 @@ Photosynthesis and stomatal conductance parameters are fitted using PlantBiophys
 
 # ╔═╡ f9be64a3-b788-48d8-a925-5954e532effb
 df_fit = let df_ = df
-	for i in unique(df.Curve)
-	    dfi = filter(x -> x.Curve == i, df_)
-	    sort!(dfi, :Cᵢ)
-	
-	    g0, g1 = PlantSimEngine.fit(Medlyn, dfi)
-	    df_.g0[df.Curve.==i] .= g0
-	    df_.g1[df.Curve.==i] .= g1
-	
-	    filter!(x -> x.PPFD > 1400.0, dfi)
-	
-	    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = PlantSimEngine.fit(Fvcb, dfi)
-	    df_.VcMaxRef[df_.Curve.==i] .= VcMaxRef
-	    df_.JMaxRef[df_.Curve.==i] .= JMaxRef
-	    df_.RdRef[df_.Curve.==i] .= RdRef
-	    df_.TPURef[df_.Curve.==i] .= TPURef
-	    df_.Tᵣ[df_.Curve.==i] .= Tᵣ
-	end
+    for i in unique(df.Curve)
+        dfi = filter(x -> x.Curve == i, df_)
+        sort!(dfi, :Cᵢ)
+
+        g0, g1 = PlantSimEngine.fit(Medlyn, dfi)
+        df_.g0[df.Curve.==i] .= g0
+        df_.g1[df.Curve.==i] .= g1
+
+        filter!(x -> x.PPFD > 1400.0, dfi)
+
+        VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = PlantSimEngine.fit(Fvcb, dfi)
+        df_.VcMaxRef[df_.Curve.==i] .= VcMaxRef
+        df_.JMaxRef[df_.Curve.==i] .= JMaxRef
+        df_.RdRef[df_.Curve.==i] .= RdRef
+        df_.TPURef[df_.Curve.==i] .= TPURef
+        df_.Tᵣ[df_.Curve.==i] .= Tᵣ
+    end
 end
 
 # ╔═╡ 3592d0a1-d658-4137-8ea8-e8ea9ff3dc91
@@ -115,52 +115,52 @@ md"""
 
 # ╔═╡ a65d0175-f6cf-4bc9-8a2f-fbde4d2692b6
 begin
-	d = sqrt(df.Area[1]) / 100 # Characteristic dimension
-	Wind = 20.0 # Wind, in m/s
-	Leaf_abs = 0.86 # default from plantecophys
-	emissivity = 0.95 # default from plantecophys
+    d = sqrt(df.Area[1]) / 100 # Characteristic dimension
+    Wind = 20.0 # Wind, in m/s
+    Leaf_abs = 0.86 # default from plantecophys
+    emissivity = 0.95 # default from plantecophys
 end
 
 # ╔═╡ 44db3882-e5b3-4427-b781-e5185e2d70af
-df_PB = let df = df  
-	constants = Constants()
-	atm_cols = keys(Atmosphere(T=25.0, Rh=0.5, Wind=10.0))
-	for i in unique(df.Curve)
-	    dfi = filter(x -> x.Curve == i, df)
-	
-	    cols = fieldnames(Atmosphere)
-	    dfiMeteo = select(dfi, names(dfi, x -> Symbol(x) in atm_cols))
-	    dfiMeteo.Wind .= Wind
-	    # Note that as we only use A-Ci curves, there is no NIR in the Licor6400
-	    dfiMeteo.Ri_SW_f .= dfi.PPFD .* Leaf_abs ./ (4.57)
-		dfiMeteo.check .= false # Remove checks from Atmopshere (P < 87kPa)
-	    meteo = Weather(dfiMeteo)
-	
-	    leaf = ModelList(
-	        energy_balance=Monteith(
-	            aₛₕ=2,
-	            aₛᵥ=1,
-	            ε=emissivity, # Matching the value in plantecophys (https://github.com/RemkoDuursma/plantecophys/blob/c9749828041f10ca47c6691436678e0a5632cfb8/R/LeafEnergyBalance.R#L112)
-	            maxiter=100,
-	        ),
-	        photosynthesis=Fvcb(
-	            Tᵣ=dfi.Tᵣ[1],
-	            VcMaxRef=dfi.VcMaxRef[1],
-	            JMaxRef=dfi.JMaxRef[1],
-	            RdRef=dfi.RdRef[1],
-	            TPURef=dfi.TPURef[1],
-	        ),
-	        stomatal_conductance=Medlyn(dfi.g0[1], dfi.g1[1]),
-	        status=(Rₛ=meteo[:Ri_SW_f], sky_fraction=1.0, PPFD=dfi.PPFD, d=d)
-	    )
-	
-	    run!(leaf, meteo)
-	    df.AsimPB[df.Curve.==i, :] = DataFrame(leaf).A
-	    df.EsimPB[df.Curve.==i, :] = DataFrame(leaf).λE ./ (meteo[:λ] * constants.Mₕ₂ₒ) * 1000
-	    df.TlsimPB[df.Curve.==i, :] = DataFrame(leaf).Tₗ
-	    df.GssimPB[df.Curve.==i, :] = DataFrame(leaf).Gₛ
-	end
-	df
+df_PB = let df = df
+    constants = Constants()
+    atm_cols = keys(Atmosphere(T=25.0, Rh=0.5, Wind=10.0))
+    for i in unique(df.Curve)
+        dfi = filter(x -> x.Curve == i, df)
+
+        cols = fieldnames(Atmosphere)
+        dfiMeteo = select(dfi, names(dfi, x -> Symbol(x) in atm_cols))
+        dfiMeteo.Wind .= Wind
+        # Note that as we only use A-Ci curves, there is no NIR in the Licor6400
+        dfiMeteo.Ri_SW_f .= dfi.PPFD .* Leaf_abs ./ (4.57)
+        dfiMeteo.check .= false # Remove checks from Atmopshere (P < 87kPa)
+        meteo = Weather(dfiMeteo)
+
+        leaf = ModelList(
+            energy_balance=Monteith(
+                aₛₕ=2,
+                aₛᵥ=1,
+                ε=emissivity, # Matching the value in plantecophys (https://github.com/RemkoDuursma/plantecophys/blob/c9749828041f10ca47c6691436678e0a5632cfb8/R/LeafEnergyBalance.R#L112)
+                maxiter=100,
+            ),
+            photosynthesis=Fvcb(
+                Tᵣ=dfi.Tᵣ[1],
+                VcMaxRef=dfi.VcMaxRef[1],
+                JMaxRef=dfi.JMaxRef[1],
+                RdRef=dfi.RdRef[1],
+                TPURef=dfi.TPURef[1],
+            ),
+            stomatal_conductance=Medlyn(dfi.g0[1], dfi.g1[1]),
+            status=(Rₛ=meteo[:Ri_SW_f], sky_fraction=1.0, PPFD=dfi.PPFD, d=d)
+        )
+
+        run!(leaf, meteo)
+        df.AsimPB[df.Curve.==i, :] = DataFrame(leaf).A
+        df.EsimPB[df.Curve.==i, :] = DataFrame(leaf).λE ./ (meteo[:λ] * constants.Mₕ₂ₒ) * 1000
+        df.TlsimPB[df.Curve.==i, :] = DataFrame(leaf).Tₗ
+        df.GssimPB[df.Curve.==i, :] = DataFrame(leaf).Gₛ
+    end
+    df
 end
 
 # ╔═╡ 92deadb1-537b-4c3d-b0d2-3fd3cba171e4
@@ -292,29 +292,29 @@ Here we stack the results in a long-format DataFrame for computing the statistic
 
 # ╔═╡ db357873-44b5-4110-a80b-98d3adf785e6
 begin
-	meas =
-	    stack(
-	        select(
-	            df,
-	            [:Date => :Date, :Cₐ => :Cₐ, :A => :A, :Trmmol => :E, :Tₗ => :Tl, :Gₛ => :Gs]
-	        ),
-	        [:A, :E, :Tl, :Gs],
-	        [:Date, :Cₐ],
-	        value_name=:measured
-	    )
-	
-	sim_PB =
-	    stack(
-	        select(
-	            df_PB,
-	            [:Date => :Date, :AsimPB => :A, :EsimPB => :E, :TlsimPB => :Tl, :GssimPB => :Gs]
-	        ),
-	        [:A, :E, :Tl, :Gs],
-	        :Date,
-	        value_name=:simulated
-	    )
-	sim_PB.origin .= "PlantBiophysics.jl"
-	sim_PB
+    meas =
+        stack(
+            select(
+                df,
+                [:Date => :Date, :Cₐ => :Cₐ, :A => :A, :Trmmol => :E, :Tₗ => :Tl, :Gₛ => :Gs]
+            ),
+            [:A, :E, :Tl, :Gs],
+            [:Date, :Cₐ],
+            value_name=:measured
+        )
+
+    sim_PB =
+        stack(
+            select(
+                df_PB,
+                [:Date => :Date, :AsimPB => :A, :EsimPB => :E, :TlsimPB => :Tl, :GssimPB => :Gs]
+            ),
+            [:A, :E, :Tl, :Gs],
+            :Date,
+            value_name=:simulated
+        )
+    sim_PB.origin .= "PlantBiophysics.jl"
+    sim_PB
 end
 
 # ╔═╡ 5ac831c1-cc9e-47e9-a11b-bd191a1d55a2
@@ -374,12 +374,12 @@ Note that the real code executed here is the following, because neither `sim_LG`
 
 # ╔═╡ 182787c9-5075-451f-bdc7-5a8add68d141
 begin
-	df_all = sim_PB
-	df_res = leftjoin(df_all, meas, on=[:Date, :variable])
-	# Filtering out the results for very low Cₐ:
-	filter!(x -> x.Cₐ > 150, df_res)
-	filter!(x -> x.Cₐ > 150, df)
-	df_res
+    df_all = sim_PB
+    df_res = leftjoin(df_all, meas, on=[:Date, :variable])
+    # Filtering out the results for very low Cₐ:
+    filter!(x -> x.Cₐ > 150, df_res)
+    filter!(x -> x.Cₐ > 150, df)
+    df_res
 end
 
 # ╔═╡ 2fabe562-5eb9-4ef1-897e-f6e380d1518c
@@ -398,7 +398,7 @@ stats =
         [:measured, :simulated] => ((x, y) -> Bias(x, y)) => :Bias,
         [:measured, :simulated] => ((x, y) -> nBias(x, y)) => :nBias,
         [:measured, :simulated] => ((x, y) -> EF(x, y)) => :EF
-	)
+    )
 
 # ╔═╡ e8171ee6-36fa-4227-8f78-2b0bd8675cdf
 md"""
@@ -520,8 +520,8 @@ begin
     axc = Axis(
         fig[2, 2],
         title="(c) CO₂ stomatal conductance (Gₛ)",
-        aspect=1, 
-		titlealign=:left
+        aspect=1,
+        titlealign=:left
     )
     xlims!(-0.05, 0.85)
     ylims!(-0.05, 0.85)
@@ -626,7 +626,7 @@ md"""
 md"""
 The full validation that includes all three packages would give the following plot:
 
-![Full validation plot](https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/tutorials/out/figure_global_simulation.png)
+![Full validation plot](https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/evaluation/figure_global_simulation.png)
 """
 
 # ╔═╡ 0ac70149-83d3-4056-9e1b-fc91dd7d44ca
