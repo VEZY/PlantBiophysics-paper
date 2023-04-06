@@ -687,4 +687,4 @@ begin
     fig
 end
 
-save("out/figure_global_simulation.png", fig, px_per_unit=3)
+save("figure_global_simulation.png", fig, px_per_unit=3)
