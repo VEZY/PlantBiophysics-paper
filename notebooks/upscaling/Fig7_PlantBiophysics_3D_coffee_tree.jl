@@ -6,14 +6,14 @@ using InteractiveUtils
 
 # ╔═╡ 56757555-725c-49b8-8ad9-84d99052a0c8
 begin
-	using PlantBiophysics, PlantGeom, PlantMeteo, PlantSimEngine
-	using CairoMakie
-	using BenchmarkTools
-	using FLoops
-	using Dates, DataFrames, CSV, Statistics
-	using MultiScaleTreeGraph
-	using PlutoUI
-	nothing
+    using PlantBiophysics, PlantGeom, PlantMeteo, PlantSimEngine
+    using CairoMakie
+    using BenchmarkTools
+    using FLoops
+    using Dates, DataFrames, CSV, Statistics
+    using MultiScaleTreeGraph
+    using PlutoUI
+    nothing
 end
 
 # ╔═╡ 65ec1544-c81f-11ed-0a29-174eeb8e92e0
@@ -44,12 +44,12 @@ md"""
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
 weather = PlantMeteo.read_weather("meteo.csv",
-    		:temperature => :T,
-    		:relativeHumidity => (x -> x ./ 100) => :Rh,
-    		:wind => :Wind,
-			:VPD => (x -> x ./ 100.0) => :VPD,
-    		:atmosphereCO2_ppm => :Cₐ,
-    		date_format = DateFormat("yyyy/mm/dd")
+    :temperature => :T,
+    :relativeHumidity => (x -> x ./ 100) => :Rh,
+    :wind => :Wind,
+    :VPD => (x -> x ./ 100.0) => :VPD,
+    :atmosphereCO2_ppm => :Cₐ,
+    date_format=DateFormat("yyyy/mm/dd")
 );
 
 # ╔═╡ c13c9dd7-3a8c-436a-9520-c638a76b7135
@@ -72,7 +72,7 @@ mtg2 = transform(
     [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y) => :Rₛ,
     :Ra_PAR_f => (x -> x * 4.57) => :PPFD,
     (x -> 0.3) => :d,
-    ignore_nothing = true
+    ignore_nothing=true
 )
 
 # ╔═╡ 59b1cdf2-d868-4fe3-87c3-700afd2cee0a
@@ -88,11 +88,11 @@ md"""
 
 # ╔═╡ 37f50a97-2842-4b12-ab70-ab56de09af0b
 begin
-	mtg_sim = deepcopy(mtg2)
-	# Initialize the models inside the MTG:
-	init_mtg_models!(mtg_sim, models, length(weather), verbose = false)
-	# Make the simulation:
-	run!(mtg_sim, weather)
+    mtg_sim = deepcopy(mtg2)
+    # Initialize the models inside the MTG:
+    init_mtg_models!(mtg_sim, models, length(weather), verbose=false)
+    # Make the simulation:
+    run!(mtg_sim, weather)
 end
 
 # ╔═╡ 5376ccaf-a41a-4ad2-85a8-8b4badd4d938
@@ -104,11 +104,11 @@ Let's make a benchmark of the simulation on the whole coffee tree. Note that ben
 
 # ╔═╡ 801bb336-133d-4b2e-9ea7-9ea390451e59
 begin
-	mtg_sim_bench = deepcopy(mtg2)
-	# Initialize the models inside the MTG:
-	init_mtg_models!(mtg_sim_bench, models, length(weather), verbose = false)
-	# Make the simulation:
-	times = @benchmark run!($mtg_sim, $weather) 
+    mtg_sim_bench = deepcopy(mtg2)
+    # Initialize the models inside the MTG:
+    init_mtg_models!(mtg_sim_bench, models, length(weather), verbose=false)
+    # Make the simulation:
+    times = @benchmark run!($mtg_sim, $weather)
 end
 
 # ╔═╡ aa546a40-3cd4-47c5-8ba8-020861402418
@@ -132,15 +132,15 @@ md"""
 
 # ╔═╡ dd6a03d0-b0e9-45df-aee8-abc627497606
 f = let
-	f = Figure()
-	ax = Axis3(f[1,1], aspect=:data)
-	p = viz!(ax, mtg_sim, color = :Tₗ, index = 1)
-	colorbar(f[1,2], p)
-	f
+    f = Figure()
+    ax = Axis3(f[1, 1], aspect=:data)
+    p = viz!(ax, mtg_sim, color=:Tₗ, index=1)
+    colorbar(f[1, 2], p)
+    f
 end
 
 # ╔═╡ b7530979-76f5-4a0b-a23e-24f4e6d55aac
-save("out/3d_coffee.png", f)
+save("3d_coffee.png", f)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """

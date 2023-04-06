@@ -90,22 +90,22 @@ We create possible ranges for input parameters. These ranges where chosen so all
 # ╔═╡ acc685f9-7ae8-483d-982e-ff45ccd9e860
 begin
     # Create the ranges of input parameters
-	length_range = 10000
-	Rs = range(10, 500, length=length_range)
-	Ta = range(18, 40, length=length_range)
-	Wind = range(0.5, 20, length=length_range)
-	P = range(90, 101, length=length_range)
-	Rh = range(0.1, 0.98, length=length_range)
-	Ca = range(360, 900, length=length_range)
-	skyF = range(0.0, 1.0, length=length_range)
-	d = range(0.001, 0.5, length=length_range)
-	Jmax = range(200.0, 300.0, length=length_range)
-	Vmax = range(150.0, 250.0, length=length_range)
-	Rd = range(0.3, 2.0, length=length_range)
-	TPU = range(5.0, 20.0, length=length_range)
-	g0 = range(0.001, 2.0, length=length_range)
-	g1 = range(0.5, 15.0, length=length_range)
-	vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
+    length_range = 10000
+    Rs = range(10, 500, length=length_range)
+    Ta = range(18, 40, length=length_range)
+    Wind = range(0.5, 20, length=length_range)
+    P = range(90, 101, length=length_range)
+    Rh = range(0.1, 0.98, length=length_range)
+    Ca = range(360, 900, length=length_range)
+    skyF = range(0.0, 1.0, length=length_range)
+    d = range(0.001, 0.5, length=length_range)
+    Jmax = range(200.0, 300.0, length=length_range)
+    Vmax = range(150.0, 250.0, length=length_range)
+    Rd = range(0.3, 2.0, length=length_range)
+    TPU = range(5.0, 20.0, length=length_range)
+    g0 = range(0.001, 2.0, length=length_range)
+    g1 = range(0.5, 15.0, length=length_range)
+    vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
     nothing
 end
 
@@ -114,28 +114,28 @@ md"We then sample `N` conditions from the given ranges:"
 
 # ╔═╡ a0476d0d-64d9-4457-b78d-41519e38e859
 begin
-	set = [rand.(vars) for i = 1:N]
-	set = reshape(vcat(set...), (length(set[1]), length(set)))'
-	name = [
-	    "T",
-	    "Wind",
-	    "P",
-	    "Rh",
-	    "Ca",
-	    "JMaxRef",
-	    "VcMaxRef",
-	    "RdRef",
-	    "Rs",
-	    "sky_fraction",
-	    "d",
-	    "TPURef",
-	    "g0",
-	    "g1",
-	]
-	set = DataFrame(set, name)
-	@. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
-	@. set[!, :PPFD] = set.Rs * 0.48 * 4.57
-	set
+    set = [rand.(vars) for i = 1:N]
+    set = reshape(vcat(set...), (length(set[1]), length(set)))'
+    name = [
+        "T",
+        "Wind",
+        "P",
+        "Rh",
+        "Ca",
+        "JMaxRef",
+        "VcMaxRef",
+        "RdRef",
+        "Rs",
+        "sky_fraction",
+        "d",
+        "TPURef",
+        "g0",
+        "g1",
+    ]
+    set = DataFrame(set, name)
+    @. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
+    @. set[!, :PPFD] = set.Rs * 0.48 * 4.57
+    set
 end
 
 # ╔═╡ ae00e44e-d864-4d04-b2e8-fac510ce44bb
@@ -331,11 +331,11 @@ Markdown.parse("""
 We here display the computational time histogram of each package on the same scale in order to compare them: `PlantBiophysics.jl` (a), `plantecophys` (b) and `LeafGasExchange.jl` (c). The y-axis represents the density (_i.e._ reaching 0.3 means that 30% of the computed times are in this bar). Orange zone represents the interval [mean - standard deviation; mean + standard deviation]. Red dashed line represents the mean. Note that the x-axis is logarithmic.
 
 ```julia
-fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
+    fig = plot_benchmark_Makie(statsPB, statsPE, statsLG, time_PB, time_PE, time_LG)
     save("benchmark_each_time_steps.png", fig, px_per_unit=3)
 ```
 
-![](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/out/benchmark_each_time_steps.png?raw=true)
+![](https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/performance/benchmark_each_time_steps.png)
 
 !!! note
 	PlantBiophysics.jl is $(Int(round(df_res[1,:plantecophys] / df_res[1,:PlantBiophysics]))) times faster than plantecophys, and  $(Int(round(df_res[1,:LeafGasExchange] / df_res[1,:PlantBiophysics]))) times faster than LeafGasExchange.jl.
@@ -371,23 +371,23 @@ end
 
 # ╔═╡ e56f829e-4b83-457a-8e90-a08e071cd5f3
 begin
-	function Base.show(io::IO, ::MIME"text/plain", m::StatResults)
-	    print(
-	        io,
-	        "Benchmark:",
-	        "\nMean time -> ",
-	        m.mean,
-	        " ± ",
-	        m.stddev,
-	        "\nMedian time -> ",
-	        m.median,
-	        "\nMinimum time -> ",
-	        m.min,
-	        "\nMaximum time -> ",
-	        m.max,
-	    )
-	end
-	Base.show(io::IO, m::StatResults) = print(io, m.mean, "(±", m.stddev, ')')
+    function Base.show(io::IO, ::MIME"text/plain", m::StatResults)
+        print(
+            io,
+            "Benchmark:",
+            "\nMean time -> ",
+            m.mean,
+            " ± ",
+            m.stddev,
+            "\nMedian time -> ",
+            m.median,
+            "\nMinimum time -> ",
+            m.min,
+            "\nMaximum time -> ",
+            m.max,
+        )
+    end
+    Base.show(io::IO, m::StatResults) = print(io, m.mean, "(±", m.stddev, ')')
 
 
     md"""
