@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.22
+# v0.19.23
 
 using Markdown
 using InteractiveUtils
@@ -99,7 +99,7 @@ end
 md"""
 ## Benchmarking
 
-Let's make a benchmark of the simulation on the whole coffee tree. Note that benchmarking shouldn't be done in a Pluto notebook, but this gives an idea of how fast we can make a simulation.
+Let's make a benchmark of the simulation on the whole coffee tree.
 """
 
 # ╔═╡ 801bb336-133d-4b2e-9ea7-9ea390451e59
@@ -125,6 +125,12 @@ md"""
 The simulation takes **$(round((total_time_s * 1e6) / (nleaves * n_meteo_steps), digits = 1)) μs** to run for each leaf, and **$(round(total_time_s, digits = 2)) s** for the whole plant on all time-steps.
 """
 
+# ╔═╡ e2e58a85-060f-4129-835f-bb06a9fea045
+md"""
+!!! warning
+	Benchmarking shouldn't be done in a Pluto notebook, and especially not on Github CI server that are **very** slow, but this gives an idea of how fast we can make a simulation, even on very low end hardware, and without parallelization.
+"""
+
 # ╔═╡ 840c1748-0502-4d33-ad81-bf8047b58037
 md"""
 ## Plotting the result in 3D
@@ -140,7 +146,7 @@ f = let
 end
 
 # ╔═╡ b7530979-76f5-4a0b-a23e-24f4e6d55aac
-save("3d_coffee.png", f)
+save("3d_coffee.png", f);
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -179,7 +185,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "51690df679579f86f526a435808b81ea57aaa8fb"
+project_hash = "c1e73baa24739b6f814b8129d1bda9d3197b87cf"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -1984,6 +1990,7 @@ version = "3.5.0+0"
 # ╠═69739263-1458-4180-ac58-0901addca0ab
 # ╠═8cbf8ad6-916a-4114-9123-46fe2db1be11
 # ╟─a299a6d8-ead4-48a4-a346-c933c58a16db
+# ╟─e2e58a85-060f-4129-835f-bb06a9fea045
 # ╟─840c1748-0502-4d33-ad81-bf8047b58037
 # ╠═dd6a03d0-b0e9-45df-aee8-abc627497606
 # ╠═b7530979-76f5-4a0b-a23e-24f4e6d55aac

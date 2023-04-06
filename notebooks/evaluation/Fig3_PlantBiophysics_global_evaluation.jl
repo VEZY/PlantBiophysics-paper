@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.22
+# v0.19.23
 
 using Markdown
 using InteractiveUtils
@@ -739,7 +739,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "aee68f6e10ac5a4b11c1ca7cd937396b86ad139d"
+project_hash = "f426a4e193f3b68594626aa035490ea686fbd57b"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]

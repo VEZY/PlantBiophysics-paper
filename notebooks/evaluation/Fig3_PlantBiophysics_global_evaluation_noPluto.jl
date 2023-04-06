@@ -275,7 +275,7 @@ df.GssimPE .= Gs_sim
 df.PEfailed .= failed
 
 if saving_simulations
-    CSV.write("out/Medlyn_ACis_simulations.csv", df)
+    CSV.write("Medlyn_ACis_simulations.csv", df)
 end
 
 ########################################################################
@@ -337,7 +337,7 @@ filter!(x -> x.Cₐ > 150, df_res)
 filter!(x -> x.Cₐ > 150, df)
 
 if saving_simulations
-    CSV.write("out/df_res.csv", df_res)
+    CSV.write("df_res.csv", df_res)
 end
 
 ########################################################################
