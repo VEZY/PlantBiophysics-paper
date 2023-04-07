@@ -1,0 +1,13 @@
+variable,origin,RMSE,nRMSE,Bias,nBias,EF
+A,LeafGasExchange.jl,5.66,0.12,-0.7197,-0.02,0.72
+A,PlantBiophysics.jl,1.47,0.03,-0.013,-0.0,0.98
+A,plantecophys,3.18,0.07,0.507,0.01,0.91
+E,LeafGasExchange.jl,0.93,0.11,-0.6434,-0.07,0.63
+E,PlantBiophysics.jl,0.48,0.05,0.2733,0.03,0.9
+E,plantecophys,0.75,0.09,-0.1597,-0.02,0.76
+Gs,LeafGasExchange.jl,0.05,0.15,-0.0367,-0.1,0.4
+Gs,PlantBiophysics.jl,0.02,0.07,0.0075,0.02,0.88
+Gs,plantecophys,0.08,0.23,0.0465,0.13,-0.46
+Tl,LeafGasExchange.jl,0.72,0.03,0.0655,0.0,0.97
+Tl,PlantBiophysics.jl,0.52,0.02,0.3432,0.02,0.99
+Tl,plantecophys,1.56,0.07,1.0323,0.05,0.88

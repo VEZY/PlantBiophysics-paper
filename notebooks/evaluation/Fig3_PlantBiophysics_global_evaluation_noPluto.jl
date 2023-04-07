@@ -353,6 +353,10 @@ stats = combine(
     [:measured, :simulated] => ((x, y) -> EF(x, y)) => :EF,
 )
 
+if saving_simulations
+    CSV.write("statistics.csv", stats)
+end
+
 ########################################################################
 # Plotting with Makie.jl
 ########################################################################
@@ -687,4 +691,4 @@ begin
     fig
 end
 
-save("figure_global_simulation.png", fig, px_per_unit=3)
+save("figure_global_simulation.png", fig, px_per_unit=6)
