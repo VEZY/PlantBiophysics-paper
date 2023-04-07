@@ -22,6 +22,7 @@ begin
     using CairoMakie
     using BenchmarkTools
     using FLoops
+	using Downloads
     using Dates, DataFrames, CSV, Statistics
     using MultiScaleTreeGraph
     using PlutoUI
@@ -35,7 +36,7 @@ md"""
 """
 
 # ╔═╡ 552692ae-2f8e-4ae1-88a0-5565edabdf3f
-mtg = read_opf("coffee.opf")
+mtg = read_opf(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/coffee.opf"))
 
 # ╔═╡ 22f4ac9d-0181-476b-a3dd-277b2c5e31a2
 md"""
@@ -43,7 +44,7 @@ md"""
 """
 
 # ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
-weather = PlantMeteo.read_weather("meteo.csv",
+weather = PlantMeteo.read_weather(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/meteo.csv"),
     :temperature => :T,
     :relativeHumidity => (x -> x ./ 100) => :Rh,
     :wind => :Wind,
@@ -58,7 +59,7 @@ md"""
 """
 
 # ╔═╡ 00877758-9349-4aa6-a2c8-ac2e50e150a0
-models = read_model("plant_coffee.yml");
+models = read_model(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/plant_coffee.yml"));
 
 # ╔═╡ e9293038-6179-481e-93c9-a619bcbce8ca
 md"""
@@ -156,6 +157,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 FLoops = "cc61a311-1640-44b5-9fba-1b764f453329"
 MultiScaleTreeGraph = "dd4a991b-8a45-4075-bede-262ee62d5583"
 PlantBiophysics = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
@@ -185,7 +187,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "c1e73baa24739b6f814b8129d1bda9d3197b87cf"
+project_hash = "c80cb0fd8a82a6303869379b8b49346f2fda80d3"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]

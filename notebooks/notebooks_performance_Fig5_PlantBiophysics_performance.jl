@@ -44,6 +44,7 @@ begin
     using CSV
     using Random
     using PlantBiophysics
+	using Downloads
 end
 
 # ╔═╡ 9c3f432b-4d1f-4765-9989-17e983cee5f7
@@ -319,7 +320,7 @@ CSV.write("benchmark_full.csv",
 """
 
 # ╔═╡ 59ce5f30-3b74-402d-919d-b1b3d1c76788
-df_res = CSV.read("benchmark.csv", DataFrame)
+df_res = CSV.read(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/performance/benchmark.csv"), DataFrame)
 
 # ╔═╡ 12497dfb-87ff-4978-801a-c78cd118b032
 md"
@@ -511,6 +512,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 PlantBiophysics = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -527,7 +529,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "ecbb2b0c3b98c742ae3a0364cc749e749cf9b317"
+project_hash = "6340524585491ba792ccec2542dd3381c24906c8"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
