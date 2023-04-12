@@ -171,6 +171,11 @@ md"""
 *Figure 2. Measurement and simulation of the leaf-to-air vapor pressure deficit (Dₗ), leaf temperature (Tₗ), carbon assimilation (A) and transpiration (Tr) of a leaf in snap measurements from Medlyn et al. (2015). The photosynthesis is simulated using the model from Farquhar et al. (1980) with the analytical resolution proposed by Leuning et al. (1995) and fitted on A-Cᵢ curves data. The energy balance is simulated using the model of Monteith et al. (2013) corrected by Schymanski et al. (2017). The stomatal conductance is forced.*
 """
 
+# ╔═╡ 32cfd745-2ff4-451c-8b09-d52d5fb8e5a0
+md"""
+## Statistics
+"""
+
 # ╔═╡ 87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
 md"""
 # References
@@ -250,6 +255,53 @@ function plot_var(ax, var_meas, var_sim)
         whiskerwidth=5,
         linewidth=2
     )
+end
+
+# ╔═╡ 06f589ac-7fa9-4881-8980-46b654515e06
+"""
+    nRMSE(obs,sim)
+
+Returns the normalized Root Mean Squared Error between observations `obs` and simulations `sim`.
+The closer to 0 the better.
+"""
+function nRMSE(obs, sim; digits=2)
+    return round(sqrt(sum((obs .- sim) .^ 2) / length(obs)) / (findmax(obs)[1] - findmin(obs)[1]), digits=digits)
+end
+
+# ╔═╡ 43dafbf0-4bfd-4820-8162-3c2a56cca4db
+"""
+    EF(obs,sim)
+
+Returns the Efficiency Factor between observations `obs` and simulations `sim` using NSE (Nash-Sutcliffe efficiency) model.
+More information can be found at https://en.wikipedia.org/wiki/Nash%E2%80%93Sutcliffe_model_efficiency_coefficient.
+The closer to 1 the better.
+"""
+function EF(obs, sim, digits=2)
+    SSres = sum((obs - sim) .^ 2)
+    SStot = sum((obs .- mean(obs)) .^ 2)
+    return round(1 - SSres / SStot, digits=digits)
+end
+
+# ╔═╡ e471e38c-2b28-4e56-bd5c-cb4383ba46ba
+"""
+	    Bias(obs,sim)
+
+	Returns the bias between observations `obs` and simulations `sim`.
+	The closer to 0 the better.
+	"""
+function Bias(obs, sim, digits=4)
+    return round(mean(sim .- obs), digits=digits)
+end
+
+# ╔═╡ a67b71bb-38e5-4153-ae2d-d8fa252a34fc
+"""
+	nBias(obs,sim; digits = 2)
+
+Returns the normalised bias (%) between observations `obs` and simulations `sim`.
+The closer to 0 the better.
+"""
+function nBias(obs, sim; digits=2)
+    return round(mean((sim .- obs)) / (findmax(obs)[1] - findmin(obs)[1]), digits=digits)
 end
 
 # ╔═╡ f6196de0-85a1-4dc1-b3cd-b130279a944b
@@ -461,6 +513,22 @@ end
 
 # ╔═╡ 518deea7-f7a5-4c41-87b1-2ecade7eadb4
 save("figure_day.png", fig, px_per_unit=3);
+
+# ╔═╡ a46a3ae6-cf66-4071-b546-931ba1c8abb7
+let
+	df_vec = []
+	vars = [:Dₗ, :Tₗ, :A, :Tr]
+	for var in [df.Dₗ => df_sim_forcedGs.Dlsim, df.Tₗ => df_sim_forcedGs.Tlsim, df.A => df_sim_forcedGs.Asim, df.Trmmol => df_sim_forcedGs.Esim]
+		var_ = popfirst!(vars)
+		var_vec = Any[:variable => var_]
+		for fn in [RMSE, nRMSE, EF, Bias, nBias]
+			push!(var_vec, Symbol(fn) => fn(var.first, var.second))
+		end
+	push!(df_vec, (;var_vec...))
+	end
+
+	DataFrame(df_vec)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2293,16 +2361,22 @@ version = "3.5.0+0"
 # ╟─a61b92ca-4ae5-4b2a-993d-ae31143316d6
 # ╠═612c00e7-6abd-4023-a27a-c75c95a73e38
 # ╟─7bdc02d9-f7d7-48df-babc-1c5630f5a39d
-# ╟─f267250a-9950-427e-ad46-f5ee9f25136b
+# ╠═f267250a-9950-427e-ad46-f5ee9f25136b
 # ╟─693d373f-37d4-4a8f-b9a1-18cf9f36c9fb
 # ╟─82f910b4-4c98-4f69-b818-c933ea3e9e8a
 # ╟─108e2a1e-d078-43c6-a490-b4e93d5f1da1
 # ╟─efbbae0c-47db-4322-8388-3d75ebfef553
 # ╠═518deea7-f7a5-4c41-87b1-2ecade7eadb4
+# ╟─32cfd745-2ff4-451c-8b09-d52d5fb8e5a0
+# ╟─a46a3ae6-cf66-4071-b546-931ba1c8abb7
 # ╟─87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
 # ╟─05864aeb-0024-4848-9df9-2d66ccbcc1b7
 # ╟─5921ffc0-a5b8-45a2-8822-0ba6f6cab7f7
 # ╟─c8c915f8-b235-4b57-a1ef-ba6bda5f53db
+# ╟─06f589ac-7fa9-4881-8980-46b654515e06
+# ╟─43dafbf0-4bfd-4820-8162-3c2a56cca4db
+# ╟─e471e38c-2b28-4e56-bd5c-cb4383ba46ba
+# ╟─a67b71bb-38e5-4153-ae2d-d8fa252a34fc
 # ╟─f6196de0-85a1-4dc1-b3cd-b130279a944b
 # ╠═8feb20e2-76d1-4a13-8804-22ae9d1eae82
 # ╟─00000000-0000-0000-0000-000000000001
