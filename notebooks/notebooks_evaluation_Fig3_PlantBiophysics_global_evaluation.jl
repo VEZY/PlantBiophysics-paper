@@ -430,7 +430,8 @@ begin
         font=noto_sans,
         resolution=size_pt,
         fontsize=12,
-        xminorgridstyle=true
+        xminorgridstyle=true,
+	backgroundcolor = :white
     )
 
     sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, fontsize=12)
