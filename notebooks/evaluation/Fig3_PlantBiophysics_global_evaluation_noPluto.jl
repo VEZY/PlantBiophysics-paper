@@ -20,6 +20,9 @@ saving_simulations = false
 # Do you want to save the figure ?
 saving_figure = false
 
+Leaf_abs = 0.85 # Von Caemmerer et al. (2009)
+emissivity = 0.95 # default from plantecophys
+
 # Loading R packages
 R"""
 if (!require('plantecophys')) install.packages('plantecophys', repos = "https://cloud.r-project.org"); library('plantecophys')
@@ -45,7 +48,7 @@ for i in unique(df.Curve)
     df.g0[df.Curve.==i] .= g0
     df.g1[df.Curve.==i] .= g1
 
-    filter!(x -> x.aPPFD > 1400.0, dfi)
+    filter!(x -> x.aPPFD > 1400.0 * Leaf_abs, dfi)
 
     VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = collect(PlantSimEngine.fit(Fvcb, dfi, α=0.425, θ=0.7))
     df.VcMaxRef[df.Curve.==i] .= VcMaxRef
@@ -56,7 +59,7 @@ for i in unique(df.Curve)
 
     dfiPE = dfi[:, 3:end]
     P = mean(dfi.P)
-    rename!(dfiPE, :Tₗ => :Tleaf, :Cᵢ => :Ci, :Cₐ => :Ca, :Gₛ => :gs)
+    # rename!(dfiPE, :Tₗ => :Tleaf, :Cᵢ => :Ci, :Cₐ => :Ca, :Gₛ => :gs)
     @rput P
     @rput dfiPE
     R"""
@@ -92,7 +95,8 @@ for i in unique(df.Curve)
     @rget coefs
     dfi = filter(x -> x.Curve == i, df)
     dfiPE = dfi[:, 3:end]
-    rename!(dfiPE, :Tₗ => :Tleaf, :Cᵢ => :Ci, :Cₐ => :Ca, :Gₛ => :gs, :Dₗ => :VpdL)
+    # rename!(dfiPE, :Tₗ => :Tleaf, :Cᵢ => :Ci, :Cₐ => :Ca, :Gₛ => :gs, :Dₗ => :VpdL)
+    rename!(dfiPE, :Cₐ => :Ca, :Gₛ => :gs)
     filter!(x -> x.A ./ (x.Ca) > 0.0, dfiPE)
     @rput dfiPE
     R"""
@@ -128,9 +132,6 @@ d = sqrt(df.Area[1]) / 100#sqrt(df.Area[1]/pi) / 100
 Wind = 20.0
 @rput Wind
 @rput d
-Leaf_abs = 0.85 # Von Caemmerer et al. (2009)
-emissivity = 0.95 # default from plantecophys
-
 
 ########################################################################
 # PlantBiophysics.jl
