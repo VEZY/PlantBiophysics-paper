@@ -45,9 +45,9 @@ for i in unique(df.Curve)
     df.g0[df.Curve.==i] .= g0
     df.g1[df.Curve.==i] .= g1
 
-    filter!(x -> x.PPFD > 1400.0, dfi)
+    filter!(x -> x.aPPFD > 1400.0, dfi)
 
-    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = collect(PlantSimEngine.fit(Fvcb, dfi))
+    VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = collect(PlantSimEngine.fit(Fvcb, dfi, α=0.425, θ=0.7))
     df.VcMaxRef[df.Curve.==i] .= VcMaxRef
     df.JMaxRef[df.Curve.==i] .= JMaxRef
     df.RdRef[df.Curve.==i] .= RdRef
@@ -62,7 +62,7 @@ for i in unique(df.Curve)
     R"""
     fit = fitaci(
         dfiPE,
-        varnames = list(ALEAF = "A", Tleaf = "Tleaf", Ci = "Ci", PPFD = "PPFD"),
+        varnames = list(ALEAF = "A", Tleaf = "Tleaf", Ci = "Ci", PPFD = "aPPFD"),
         Tcorrect = TRUE,
         Patm = P,
         citransition = NULL,
@@ -73,9 +73,9 @@ for i in unique(df.Curve)
         fitTPU = TRUE,
         alphag = 0,
         useRd = FALSE,
-        PPFD = dfiPE$PPFD,
+        PPFD = dfiPE$aPPFD, # Note: in the code PPFD is used as aPPFD, there is no correction by the leaf absorptance, so it is indeed aPPFD
         Tleaf = dfiPE$Tleaf,
-        alpha = 0.24,
+        alpha = 0.425,
         theta = 0.7,
         gmeso = NULL,
         EaV = 58550.0,
@@ -128,7 +128,7 @@ d = sqrt(df.Area[1]) / 100#sqrt(df.Area[1]/pi) / 100
 Wind = 20.0
 @rput Wind
 @rput d
-Leaf_abs = 0.86 # default from plantecophys
+Leaf_abs = 0.85 # Von Caemmerer et al. (2009)
 emissivity = 0.95 # default from plantecophys
 
 
@@ -137,12 +137,13 @@ emissivity = 0.95 # default from plantecophys
 
 atm_cols = keys(Atmosphere(T=25.0, Rh=0.5, Wind=10.0))
 df.AsimPB .= df.EsimPB .= df.TlsimPB .= df.GssimPB .= 0.0
-for i in unique(df.Curve)
+for i in unique(df.Curve) # i = 1
     dfi = filter(x -> x.Curve == i, df)
     dfiMeteo = select(dfi, names(dfi, x -> Symbol(x) in atm_cols))
     dfiMeteo.Wind .= Wind
-    # Note that as we only use A-Ci curves, there is no NIR in the Licor6400
-    dfiMeteo.Ri_SW_f .= dfi.PPFD .* Leaf_abs ./ (4.57)
+    # There is no NIR in the Licor6400 light, only PAR, so the shortwave radiation is only PAR
+    # incident PAR to the leaf (we correct by the leaf absorptance because it is aPPFD in input)
+    Ra_SW_f = dfi.aPPFD ./ Leaf_abs ./ 4.57
     dfiMeteo.check .= false
     meteo = Weather(dfiMeteo)
 
@@ -159,9 +160,11 @@ for i in unique(df.Curve)
             JMaxRef=dfi.JMaxRef[1],
             RdRef=dfi.RdRef[1],
             TPURef=dfi.TPURef[1],
+            α=0.425,
+            θ=0.7,
         ),
         stomatal_conductance=Medlyn(dfi.g0[1], dfi.g1[1]),
-        status=(Rₛ=meteo[:Ri_SW_f], sky_fraction=1.0, PPFD=dfi.PPFD, d=d),
+        status=(Ra_SW_f=Ra_SW_f, sky_fraction=1.0, aPPFD=dfi.aPPFD, d=d),
     )
 
     run!(leaf, meteo)
@@ -181,7 +184,7 @@ for i in unique(df.Curve)
     for i = 1:length(dfi.T)
         config =
             :Weather => (
-                PFD=dfi.PPFD[i],
+                PFD=dfi.aPPFD[i],
                 CO2=dfi.Cₐ[i],
                 RH=dfi.Rh[i] * 100,
                 T_air=dfi.T[i],
@@ -200,7 +203,9 @@ for i in unique(df.Curve)
                 EaVc=58.55,
                 ϵ=emissivity,
                 Dh=21.5,
-                α_s=1 - Leaf_abs,
+                δ=1 - Leaf_abs,
+                θ=0.7,
+                f=0.15 # corresponds to the α value used above, because α = (1-f)/2
             )
         push!(configs, config)
     end
@@ -247,10 +252,10 @@ for i in unique(df.Curve)
         g0 = g0, g1 = g1,
         EaV = 58550.0,EdVC = 2e+05, delsC = 629.26,
         EaJ = 29680.0,EdVJ = 2e+05,delsJ = 631.88,
-        alpha = 0.24,theta = 0.7, Jmax = JMaxRef,
+        alpha = 0.425,theta = 0.7, Jmax = JMaxRef,
         Vcmax = VcMaxRef, TPU = TPURef,Rd = RdRef,
         RH = dfi$Rh*100,
-        PPFD=dfi$PPFD,
+        PPFD=dfi$aPPFD,
         Patm = dfi$P,gk=0.,
         Tcorrect = FALSE
     )
@@ -391,7 +396,7 @@ begin
     size_pt = 72 .* size_inches
     fig = Figure(
         font=noto_sans,
-        resolution=size_pt,
+        size=size_pt,
         fontsize=12,
         xminorgridstyle=true,
         backgroundcolor=:transparent,
@@ -545,7 +550,7 @@ begin
     xlims!(-0.05, 0.85)
     ylims!(-0.05, 0.85)
 
-    abline!(axc, 0, 1, color=(:grey, 0.4), linewidth=4)
+    ablines!(axc, 0, 1, color=(:grey, 0.4), linewidth=4)
 
     LG = scatter!(
         axc,
