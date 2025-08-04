@@ -52,7 +52,7 @@ md"""
 
 # ╔═╡ ab97a0a5-d155-4758-a1d4-70e3a0b8c796
 md"""
-The data comes from Medlyn et al. (2015), see [here](https://doi.org/10.6084/m9.figshare.1538079.v1) for more details.
+The data comes from Medlyn et al. (2015), see [here](https://figshare.com/articles/dataset/Tumbarumba_Gas_Exchange/1538079?file=3402641) for more details.
 
 """
 
@@ -80,7 +80,7 @@ df = let
         end
     end
 
-    df_
+	df_
 end
 
 # ╔═╡ e8961d19-85d4-484b-a029-359a9dbea800
@@ -446,42 +446,6 @@ function rgb(r, g, b, a)
     return RGBA(r / 255, g / 255, b / 255, a)
 end
 
-# ╔═╡ c432a0c9-9254-4cf8-af04-2756f80f748e
-"""
-    RMSE(obs,sim)
-
-Returns the Root Mean Squared Error between observations `obs` and simulations `sim`.
-The closer to 0 the better.
-"""
-function RMSE(obs, sim, digits=2)
-    return round(sqrt(sum((obs .- sim) .^ 2) / length(obs)), digits=digits)
-end
-
-# ╔═╡ bf9a93fa-bc77-49f0-b91b-c94718af289e
-"""
-    nRMSE(obs,sim)
-
-Returns the normalized Root Mean Squared Error between observations `obs` and simulations `sim`.
-The closer to 0 the better.
-"""
-function nRMSE(obs, sim; digits=2)
-    return round(sqrt(sum((obs .- sim) .^ 2) / length(obs)) / (findmax(obs)[1] - findmin(obs)[1]), digits=digits)
-end
-
-# ╔═╡ d47fefa3-64c4-4ffd-8303-02f99ef98d5a
-"""
-    EF(obs,sim)
-
-Returns the Efficiency Factor between observations `obs` and simulations `sim` using NSE (Nash-Sutcliffe efficiency) model.
-More information can be found at https://en.wikipedia.org/wiki/Nash%E2%80%93Sutcliffe_model_efficiency_coefficient.
-The closer to 1 the better.
-"""
-function EF(obs, sim, digits=2)
-    SSres = sum((obs - sim) .^ 2)
-    SStot = sum((obs .- mean(obs)) .^ 2)
-    return round(1 - SSres / SStot, digits=digits)
-end
-
 # ╔═╡ 3d63422e-d8ba-4649-b97d-0704280a5646
 """
 	    Bias(obs,sim)
@@ -508,11 +472,11 @@ end
 stats =
     combine(
         groupby(df_res, [:variable, :origin], sort=true),
-        [:measured, :simulated] => ((x, y) -> RMSE(x, y)) => :RMSE,
-        [:measured, :simulated] => ((x, y) -> nRMSE(x, y)) => :nRMSE,
+        [:measured, :simulated] => ((x, y) -> PlantSimEngine.RMSE(x, y)) => :RMSE,
+        [:measured, :simulated] => ((x, y) -> PlantSimEngine.NRMSE(x, y)) => :nRMSE,
         [:measured, :simulated] => ((x, y) -> Bias(x, y)) => :Bias,
         [:measured, :simulated] => ((x, y) -> nBias(x, y)) => :nBias,
-        [:measured, :simulated] => ((x, y) -> EF(x, y)) => :EF
+        [:measured, :simulated] => ((x, y) -> PlantSimEngine.EF(x, y)) => :EF
     )
 
 # ╔═╡ b040102a-bf17-47d7-acfd-3a80b843fc4b
@@ -2987,7 +2951,7 @@ version = "4.1.0+0"
 # ╟─5ac831c1-cc9e-47e9-a11b-bd191a1d55a2
 # ╟─7a09574b-b06e-4c36-9fea-7757c20fd763
 # ╟─3d4375ea-2020-4829-ba70-5406c921c943
-# ╠═53a0fa15-d042-4e00-84ea-f9caa5fc3c3e
+# ╟─53a0fa15-d042-4e00-84ea-f9caa5fc3c3e
 # ╟─9f4d46ab-cc75-47e1-aef1-b7ada0e01e29
 # ╠═182787c9-5075-451f-bdc7-5a8add68d141
 # ╟─2fabe562-5eb9-4ef1-897e-f6e380d1518c
@@ -2999,9 +2963,6 @@ version = "4.1.0+0"
 # ╟─87b9a664-1746-4dba-b61f-31ed626b402b
 # ╟─0ac70149-83d3-4056-9e1b-fc91dd7d44ca
 # ╟─7dcd8225-c3eb-48d4-9f3c-7a2db6c7a679
-# ╟─c432a0c9-9254-4cf8-af04-2756f80f748e
-# ╟─bf9a93fa-bc77-49f0-b91b-c94718af289e
-# ╟─d47fefa3-64c4-4ffd-8303-02f99ef98d5a
 # ╟─3d63422e-d8ba-4649-b97d-0704280a5646
 # ╟─a2cbcc7d-891d-4c1f-8d4c-bdd1e55c76fc
 # ╟─e1ee53d0-f306-4e3d-a07c-7339210394c3
