@@ -1,181 +1,359 @@
-### A Pluto.jl notebook ###
-# v0.19.23
+using PlantBiophysics, PlantSimEngine, PlantMeteo
+import PlantBiophysics.gs_closure
+using DataFrames, CSV, Downloads
+using Statistics
+using MonteCarloMeasurements
+using CairoMakie, Colors
+using Dates
+unsafe_comparisons(true)
+constants = Constants();
 
-using Markdown
-using InteractiveUtils
+df_Medlyn = let
+    df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402638"))
+    df_.Asim .= df_.Esim .= df_.Gssim .= df_.Dlsim .= df_.Tlsim .= 0.0 ± 0.0
+    transform!(
+        df_,
+        [:Date, :Time] => ((x, y) -> Date.(x, dateformat"d/m/Y") .+ y) => :date
+    )
+    df_
+end;
 
-# ╔═╡ 56757555-725c-49b8-8ad9-84d99052a0c8
-begin
-    using PlantBiophysics, PlantGeom, PlantMeteo, PlantSimEngine
-    using CairoMakie
-    using BenchmarkTools
-    using FLoops
-	using Downloads
-    using Dates, DataFrames, CSV, Statistics
-    using MultiScaleTreeGraph
-    using PlutoUI
-    nothing
-end
+df_curves = let
+    df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402635"))
+    df_.Asim .= df_.Esim .= df_.Gssim .= df_.Dlsim .= df_.Tlsim .= 0.0 ± 0.0
+    transform!(
+        df_,
+        :Date => (x -> Dates.format.(Date.(x, dateformat"Y/m/d"), dateformat"d/m/Y")) => :Date,
+        [:Date, :Time] => ((x, y) -> Date.(x, dateformat"Y/m/d") .+ y) => :date
+    )
+    df_
+end;
 
-# ╔═╡ 65ec1544-c81f-11ed-0a29-174eeb8e92e0
-md"""
-# PlantBiophysics.jl 3D global tree simulation
+dates_tree = Dict(tree => unique(filter(x -> x.Tree == tree, df_Medlyn).Date) for tree in unique(df_Medlyn.Tree))
+tree = 3
+date = dates_tree[tree][1]
 
-This Pluto notebook presents the computation of Fig. 7 from the scientific article. It displays leaf temperature on a 3D coffee tree simulated by PlantBiophysics.jl. Non-Pluto Julia script is also available (see [here](https://github.com/VEZY/PlantBiophysics-paper/blob/main/tutorials/Fig7_PlantBiophysics_3D_coffee_tree_noPluto.jl)).
-
-## Importing the dependencies:
-
-Loading the Julia packages:
-
-"""
-
-# ╔═╡ 8c41fd8a-648c-4d50-b39b-d6087b264d95
-md"""
-## Reading data 
-#### MTG file
-"""
-
-# ╔═╡ 552692ae-2f8e-4ae1-88a0-5565edabdf3f
-mtg = read_opf(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/coffee.opf"))
-
-# ╔═╡ 22f4ac9d-0181-476b-a3dd-277b2c5e31a2
-md"""
-#### Meteorological data
-"""
-
-# ╔═╡ 2a106a14-3ab9-4ebc-87bd-8c86453a3166
-weather = PlantMeteo.read_weather(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/meteo.csv"),
-    :temperature => :T,
-    :relativeHumidity => (x -> x ./ 100) => :Rh,
-    :wind => :Wind,
-    :VPD => (x -> x ./ 100.0) => :VPD,
-    :atmosphereCO2_ppm => :Cₐ,
-    date_format=DateFormat("yyyy/mm/dd")
-);
-
-# ╔═╡ c13c9dd7-3a8c-436a-9520-c638a76b7135
-md"""
-#### Models list
-"""
-
-# ╔═╡ 00877758-9349-4aa6-a2c8-ac2e50e150a0
-models = read_model(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/plant_coffee.yml"));
-
-# ╔═╡ e9293038-6179-481e-93c9-a619bcbce8ca
-md"""
-## Adding light interception data: incident radiation
-"""
-
-# ╔═╡ f02f400c-cc1f-4798-8045-e6fb93ec5647
-mtg2 = transform(
-    mtg,
-    [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y * 1.2) => :Rᵢ, # This would be the incident radiation
-    [:Ra_PAR_f, :Ra_NIR_f] => ((x, y) -> x + y) => :Rₛ,
-    :Ra_PAR_f => (x -> x * 4.57) => :PPFD,
-    (x -> 0.3) => :d,
-    ignore_nothing=true
+df = filter(
+    row -> row.Date == date && row.Tree == tree,# && row["Age Class"] == 1,
+    df_Medlyn
 )
 
-# ╔═╡ 59b1cdf2-d868-4fe3-87c3-700afd2cee0a
-md"""
-!!! note
-	We use `transform` instead of `transform!` here to make a copy of the mtg after modification because we shouldn't mutate objects in Pluto notebooks.
-"""
+df_curve_leaf = filter(
+    row -> row.Date == date && row["Leaf Age"] == 1,
+    df_curves
+)
 
-# ╔═╡ 0ce68c8e-13a2-499d-86c1-59ea31c69f42
-md"""
-## Running the simulation
-"""
+meteo = let
+    meteo_df = select(
+        df,
+        :date,
+        :T => (x -> x ± 0.1) => :T,
+        :T => (x -> 40.0 ± 10.0) => :Wind,
+        :P => (x -> x ± (0.001 * x)) => :P,
+        :Rh => (x -> x ± 0.01) => :Rh,
+        :Cₐ => (x -> x ± 10.0) => :Cₐ
+    )
+    Weather(meteo_df, (site="Tumbarumba",))
+end;
 
-# ╔═╡ 37f50a97-2842-4b12-ab70-ab56de09af0b
-begin
-    mtg_sim = deepcopy(mtg2)
-    # Initialize the models inside the MTG:
-    init_mtg_models!(mtg_sim, models, length(weather), verbose=false)
+# Fitting parameters
+
+VcMaxRef, JMaxRef, RdRef, TPURef = PlantSimEngine.fit(Fvcb, df_curve_leaf)
+
+# `g0` and `g1` are not fitted because the dataset does not present a Gₛ~VPD curve, and the snap measurements are already used for validation. See the script for an evaluation with a forcing of Gₛ.
+
+# Simulation
+
+function plot_var(ax, var_meas, var_sim)
+    line_color = Colors.RGB(([67, 101, 139] ./ 255)...)
+    error_color = line_color
+    point_color = Colors.RGB(253 / 255, 100 / 255, 103 / 255)
+    point_fill = Colors.RGBA(253 / 255, 100 / 255, 103 / 255, 0.5)
+
+    scatter!(
+        ax,
+        var_meas,
+        color=point_fill,
+        markersize=12,
+        label="Measurement",
+        strokecolor=point_color,
+        strokewidth=3
+    )
+
+    lines!(
+        ax,
+        pmean.(var_sim),
+        color=line_color,
+        linewidth=2.5,
+        label="Simulation ± 95% confidence interval"
+    )
+
+    errorbars!(
+        ax,
+        eachindex(var_sim),
+        pmean.(var_sim),
+        pstd.(var_sim),
+        pstd.(var_sim),
+        color=error_color,
+        whiskerwidth=5,
+        linewidth=2
+    )
+end
+
+function nRMSE(obs, sim; digits=2)
+    return round(sqrt(sum((obs .- sim) .^ 2) / length(obs)) / (findmax(obs)[1] - findmin(obs)[1]), digits=digits)
+end
+
+function EF(obs, sim, digits=2)
+    SSres = sum((obs - sim) .^ 2)
+    SStot = sum((obs .- mean(obs)) .^ 2)
+    return round(1 - SSres / SStot, digits=digits)
+end
+
+function Bias(obs, sim, digits=4)
+    return round(mean(sim .- obs), digits=digits)
+end
+
+function nBias(obs, sim; digits=2)
+    return round(mean((sim .- obs)) / (findmax(obs)[1] - findmin(obs)[1]), digits=digits)
+end
+
+"""
+    ForcedGs()
+
+A stomatal conductance model that forces the stomatal conductance to the value of `Gₛ` in the status.
+
+It usually is used to force the stomatal conductance to the value measured in the chamber.
+
+"""
+struct ForcedGs <: PlantBiophysics.AbstractStomatal_ConductanceModel
+    g0
+end
+
+ForcedGs() = ForcedGs(0.0)
+
+# We implement a method for gs_closure as it is used in the photosynthesis model:
+function PlantBiophysics.gs_closure(::ForcedGs, models, status, meteo=missing, constants=nothing, extra=nothing)
+    # first iteration, we take measured Gs as a proxy:
+    if status.A < 1e-9
+        status.Gₛ
+    else
+        # Then we compute it using A from the previous iteration:
+        status.A / (status.Gₛ - models.stomatal_conductance.g0)
+    end
+end;
+
+# We implement the model as a method for run!:
+function PlantSimEngine.run!(
+    ::ForcedGs,
+    models,
+    status,
+    meteo::M,
+    constants=Constants(),
+    extra=nothing,
+) where {M<:PlantMeteo.AbstractAtmosphere}
+    status.Gₛ
+end
+
+# We also implement a method for run! with a gs_closure (this is called from FvCB):
+function PlantSimEngine.run!(::ForcedGs, models, status, gs_closure, extra=nothing)
+    status.Gₛ
+end
+
+# Now we declared the inputs:
+function PlantSimEngine.inputs_(::ForcedGs)
+    (Gₛ=-Inf,)
+end
+
+# And the outputs:
+function PlantSimEngine.outputs_(::ForcedGs)
+    (Gₛ=-Inf,)
+end
+
+# ╔═╡ a1be516a-3b10-4c4a-a219-7e34d3e8edd7
+df_sim = let
+
+    leaf = ModelList(
+        energy_balance=Monteith(maxiter=100),
+        photosynthesis=Fvcb(VcMaxRef=VcMaxRef, JMaxRef=JMaxRef, RdRef=RdRef, TPURef=TPURef),
+        stomatal_conductance=Medlyn(0.01, 3.42),
+        status=(
+            Ra_SW_f=(df.aPPFD ± (0.1 * df.aPPFD)) / 4.57, # not / 0.48 because it is in the chamber, the source is only PAR
+            sky_fraction=1.0,
+            aPPFD=df.aPPFD ± (0.1 * df.aPPFD),
+            d=Particles(Uniform(0.01, 0.10))
+        ),
+        type_promotion=Dict(Float64 => Particles{Float64,2000}),
+        variables_check=false
+    )
+
     # Make the simulation:
-    run!(mtg_sim, weather)
+    run!(leaf, meteo)
+
+    # Extract the outputs:
+    df_sim =
+        select(
+            DataFrame(leaf),
+            :A => :Asim,
+            :λE => (x -> x ./ (meteo[:λ] .* constants.Mₕ₂ₒ) .* 1000.0) => :Esim,
+            :Gₛ => :Gssim,
+            :Dₗ => :Dlsim,
+            :Tₗ => :Tlsim,
+            :aPPFD
+        )
+
+    df_sim
 end
 
-# ╔═╡ 5376ccaf-a41a-4ad2-85a8-8b4badd4d938
-md"""
-## Benchmarking
+let
+    noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
+    x_labs = (eachindex(df.Tlsim), Dates.format.(df.Time, dateformat"HH:MM"))
+    # size_inches = (6.7, 5)
+    size_inches = (10, 7)
+    size_pt = 72 .* size_inches
+    fig = Figure(
+        font=noto_sans,
+        resolution=size_pt,
+        fontsize=12,
+        xminorgridstyle=true
+    )
 
-Let's make a benchmark of the simulation on the whole coffee tree.
-"""
+    ga = fig[1, 1] = GridLayout()
 
-# ╔═╡ 801bb336-133d-4b2e-9ea7-9ea390451e59
-begin
-    mtg_sim_bench = deepcopy(mtg2)
-    # Initialize the models inside the MTG:
-    init_mtg_models!(mtg_sim_bench, models, length(weather), verbose=false)
+    # axDl = Axis(ga[1, 1], ylabel="Dₗ (kPa)")
+    # plot_var(axDl, df.Dₗ, df_sim.Dlsim)
+    axDl = Axis(ga[1, 1], ylabel="Gₛ (mol m⁻² s⁻¹)")
+    plot_var(axDl, df.Gₛ, df_sim.Gssim)
+
+    axTl = Axis(ga[1, 2], ylabel="Tₗ (°C)")
+    plot_var(axTl, df.Tₗ, df_sim.Tlsim)
+
+    hidexdecorations!(axDl, grid=false)
+    hidexdecorations!(axTl, grid=false)
+
+    axA = Axis(ga[2, 1], xlabel="Time (HH:MM)", ylabel="A (μmol m⁻² s⁻¹)")
+    axA.xticks = deepcopy(x_labs)
+    plot_var(axA, df.A, df_sim.Asim)
+
+    axE = Axis(ga[2, 2], xlabel="Time (HH:MM)", ylabel="Tr (mol m⁻² s⁻¹)")
+    axE.xticks = deepcopy(x_labs)
+    plot_var(axE, df.Trmmol, df_sim.Esim)
+
+    rowgap!(ga, 10)
+    Legend(fig[2, 1], axDl, orientation=:horizontal, framevisible=false, padding=0.0)
+    fig
+end
+
+# ╔═╡ 612c00e7-6abd-4023-a27a-c75c95a73e38
+df_sim_forcedGs = let
+    leaf = ModelList(
+        Monteith(maxiter=100),
+        Fvcb(VcMaxRef=VcMaxRef, JMaxRef=JMaxRef, RdRef=RdRef, TPURef=TPURef),
+        ForcedGs(),
+        status=(
+            Ra_SW_f=(df.aPPFD ± (0.1 * df.aPPFD)) / 4.57,
+            sky_fraction=1.0,
+            aPPFD=df.aPPFD ± (0.1 * df.aPPFD),
+            d=Particles(Uniform(0.01, 0.10)),
+            Gₛ=df.Gₛ ± 0.0,
+        ),
+        type_promotion=Dict(Float64 => Particles{Float64,2000}),
+        variables_check=false,
+    )
+
     # Make the simulation:
-    times = @benchmark run!($mtg_sim, $weather)
+    run!(leaf, meteo)
+
+    # Extract the outputs:
+    df_ = select(
+        DataFrame(leaf),
+        :A => :Asim,
+        :λE => (x -> x ./ (meteo[:λ] .* constants.Mₕ₂ₒ) .* 1000.0) => :Esim,
+        :Gₛ => :Gssim,
+        :Dₗ => :Dlsim,
+        :Tₗ => :Tlsim,
+        :aPPFD,
+    )
+    df_
 end
 
-# ╔═╡ aa546a40-3cd4-47c5-8ba8-020861402418
-nleaves = length(findall(traverse(mtg_sim_bench, node -> node.MTG.symbol == "Leaf")))
+# ╔═╡ 108e2a1e-d078-43c6-a490-b4e93d5f1da1
+fig = let
+    noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
+    x_labs = (eachindex(df.Tlsim), Dates.format.(df.Time, dateformat"HH:MM"))
+    # size_inches = (6.7, 5)
+    size_inches = (10, 7)
+    size_pt = 72 .* size_inches
+    fig = Figure(font=noto_sans, size=size_pt, fontsize=12, xminorgridstyle=true)
 
-# ╔═╡ 69739263-1458-4180-ac58-0901addca0ab
-n_meteo_steps = length(weather)
+    ga = fig[1, 1] = GridLayout()
 
-# ╔═╡ 8cbf8ad6-916a-4114-9123-46fe2db1be11
-total_time_s = sum(times.times) / length(times.times) * 1e-9
+    axDl = Axis(ga[1, 1], ylabel="Dₗ (kPa)")
+    plot_var(axDl, df.Dₗ, df_sim_forcedGs.Dlsim)
+    # axDl = Axis(ga[1, 1], ylabel="Gₛ (mol m⁻² s⁻¹)")
+    # plot_var(axDl, df.Gₛ, df_sim.Gssim)
 
-# ╔═╡ a299a6d8-ead4-48a4-a346-c933c58a16db
-md"""
-The simulation takes **$(round((total_time_s * 1e6) / (nleaves * n_meteo_steps), digits = 1)) μs** to run for each leaf, and **$(round(total_time_s, digits = 2)) s** for the whole plant on all time-steps.
-"""
+    axTl = Axis(ga[1, 2], ylabel="Tₗ (°C)")
+    plot_var(axTl, df.Tₗ, df_sim_forcedGs.Tlsim)
 
-# ╔═╡ e2e58a85-060f-4129-835f-bb06a9fea045
-md"""
-!!! warning
-	Benchmarking shouldn't be done in a Pluto notebook, and especially not on Github CI server that are **very** slow, but this gives an idea of how fast we can make a simulation, even on very low end hardware, and without parallelization.
-"""
+    hidexdecorations!(axDl, grid=false)
+    hidexdecorations!(axTl, grid=false)
 
-# ╔═╡ 840c1748-0502-4d33-ad81-bf8047b58037
-md"""
-## Plotting the result in 3D
-"""
+    axA = Axis(ga[2, 1], xlabel="Time (HH:MM)", ylabel="A (μmol m⁻² s⁻¹)")
+    axA.xticks = deepcopy(x_labs)
+    plot_var(axA, df.A, df_sim_forcedGs.Asim)
 
-# ╔═╡ dd6a03d0-b0e9-45df-aee8-abc627497606
-f = let
-    f = Figure()
-    ax = Axis3(f[1, 1], aspect=:data)
-    p = viz!(ax, mtg_sim, color=:Tₗ, index=1)
-    colorbar(f[1, 2], p)
-    f
+    axE = Axis(ga[2, 2], xlabel="Time (HH:MM)", ylabel="Tr (mol m⁻² s⁻¹)")
+    axE.xticks = deepcopy(x_labs)
+    plot_var(axE, df.Trmmol, df_sim_forcedGs.Esim)
+
+    rowgap!(ga, 10)
+    Legend(fig[2, 1], axDl, orientation=:horizontal, framevisible=false, padding=0.0)
+    fig
 end
 
-# ╔═╡ b7530979-76f5-4a0b-a23e-24f4e6d55aac
-save("3d_coffee.png", f);
+# ╔═╡ 518deea7-f7a5-4c41-87b1-2ecade7eadb4
+save("figure_day.png", fig, px_per_unit=3);
+
+# ╔═╡ a46a3ae6-cf66-4071-b546-931ba1c8abb7
+let
+    df_vec = []
+    vars = [:Dₗ, :Tₗ, :A, :Tr]
+    for var in [df.Dₗ => df_sim_forcedGs.Dlsim, df.Tₗ => df_sim_forcedGs.Tlsim, df.A => df_sim_forcedGs.Asim, df.Trmmol => df_sim_forcedGs.Esim]
+        var_ = popfirst!(vars)
+        var_vec = Any[:variable=>var_]
+        for fn in [RMSE, nRMSE, EF, Bias, nBias]
+            push!(var_vec, Symbol(fn) => fn(var.first, var.second))
+        end
+        push!(df_vec, (; var_vec...))
+    end
+
+    DataFrame(df_vec)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-FLoops = "cc61a311-1640-44b5-9fba-1b764f453329"
-MultiScaleTreeGraph = "dd4a991b-8a45-4075-bede-262ee62d5583"
+MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
 PlantBiophysics = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
-PlantGeom = "5edaa67e-25db-4eb9-bf81-05d793b2238d"
 PlantMeteo = "4630fe09-e0fb-4da5-a846-781cb73437b6"
 PlantSimEngine = "9a576370-710b-4269-adf9-4f603a9c6423"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
-BenchmarkTools = "~1.3.2"
 CSV = "~0.10.9"
 CairoMakie = "~0.10.4"
+Colors = "~0.12.10"
 DataFrames = "~1.5.0"
-FLoops = "~0.2.1"
-MultiScaleTreeGraph = "~0.10.1"
+MonteCarloMeasurements = "~1.1.4"
 PlantBiophysics = "~0.9.2"
-PlantGeom = "~0.5.3"
 PlantMeteo = "~0.3.1"
 PlantSimEngine = "~0.6.1"
 PlutoUI = "~0.7.50"
@@ -187,7 +365,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "753590247fcecda1d481b2cea1387633ee4efccc"
+project_hash = "f8543d7a8f09c6e062bb71bddcb3a185193b4b14"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -274,21 +452,16 @@ git-tree-sha1 = "aebf55e6d7795e02ca500a689d326ac979aaf89e"
 uuid = "9718e550-a3fa-408a-8086-8db961cd8217"
 version = "0.1.1"
 
-[[deps.BenchmarkTools]]
-deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "d9a9701b899b30332bbcb3e1679c41cce81fb0e8"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.3.2"
-
-[[deps.Bessels]]
-git-tree-sha1 = "4435559dc39793d53a9e3d278e185e920b4619ef"
-uuid = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
-version = "0.2.8"
-
 [[deps.BitFlags]]
 git-tree-sha1 = "43b1a4a8f797c1cddadf60499a8a077d4af2cd2d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
 version = "0.1.7"
+
+[[deps.BitTwiddlingConvenienceFunctions]]
+deps = ["Static"]
+git-tree-sha1 = "0c5f81f47bbbcf4aea7b2959135713459170798b"
+uuid = "62783981-4cbd-42fc-bca8-16325de8dc4b"
+version = "0.1.5"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -300,6 +473,12 @@ version = "1.0.8+0"
 git-tree-sha1 = "eb4cb44a499229b3b8426dcfb5dd85333951ff90"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.4.2"
+
+[[deps.CPUSummary]]
+deps = ["CpuId", "IfElse", "Static"]
+git-tree-sha1 = "2c144ddb46b552f72d7eafe7cc2f50746e41ea21"
+uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
+version = "0.2.2"
 
 [[deps.CRC32c]]
 uuid = "8bf52ea8-c179-5cab-976a-9e18b702a9bc"
@@ -334,12 +513,6 @@ git-tree-sha1 = "f641eb0a4f00c343bbc32346e1217b86f3ce9dad"
 uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 version = "0.5.1"
 
-[[deps.CategoricalArrays]]
-deps = ["DataAPI", "Future", "Missings", "Printf", "Requires", "Statistics", "Unicode"]
-git-tree-sha1 = "5084cc1a28976dd1642c9f337b28a3cb03e0f7d2"
-uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-version = "0.10.7"
-
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
 git-tree-sha1 = "c6d890a52d2c4d55d326439580c3b8d0875a77d9"
@@ -351,12 +524,6 @@ deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
 git-tree-sha1 = "485193efd2176b88e6622a39a246f8c5b600e74e"
 uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
 version = "0.1.6"
-
-[[deps.CircularArrays]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "3587fdbecba8c44f7e7285a1957182711b95f580"
-uuid = "7a955b69-7140-5f4e-a0ed-f168c5e2e749"
-version = "1.3.1"
 
 [[deps.CodeTracking]]
 deps = ["InteractiveUtils", "UUIDs"]
@@ -439,11 +606,11 @@ git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.2"
 
-[[deps.CoordinateTransformations]]
-deps = ["LinearAlgebra", "StaticArrays"]
-git-tree-sha1 = "681ea870b918e7cff7111da58791d7f718067a19"
-uuid = "150eb455-5306-5404-9cee-2592286d6298"
-version = "0.6.2"
+[[deps.CpuId]]
+deps = ["Markdown"]
+git-tree-sha1 = "fcbb72b032692610bfbdb15018ac16a36cf2e406"
+uuid = "adafc99b-e345-5852-983c-f28acb93d879"
+version = "0.3.1"
 
 [[deps.Crayons]]
 git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
@@ -502,12 +669,6 @@ deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialF
 git-tree-sha1 = "a4ad7ef19d2cdc2eff57abbbe68032b1cd0bd8f8"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
 version = "1.13.0"
-
-[[deps.Distances]]
-deps = ["LinearAlgebra", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "49eba9ad9f7ead780bfb7ee319f962c811c6d3b2"
-uuid = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
-version = "0.10.8"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -680,6 +841,12 @@ git-tree-sha1 = "1cd7f0af1aa58abc02ea1d872953a97359cb87fa"
 uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
 version = "0.1.4"
 
+[[deps.GenericSchur]]
+deps = ["LinearAlgebra", "Printf"]
+git-tree-sha1 = "fb69b2a645fa69ba5f474af09221b9308b160ce6"
+uuid = "c145ed77-6b09-5dd9-b285-bf645a82121e"
+version = "0.5.3"
+
 [[deps.GeoInterface]]
 deps = ["Extents"]
 git-tree-sha1 = "0eb6de0b312688f852f347171aba888658e29f20"
@@ -751,6 +918,12 @@ git-tree-sha1 = "0341077e8a6b9fc1c2ea5edc1e93a956d2aec0c7"
 uuid = "eafb193a-b7ab-5a9e-9068-77385905fa72"
 version = "0.5.2"
 
+[[deps.HostCPUFeatures]]
+deps = ["BitTwiddlingConvenienceFunctions", "IfElse", "Libdl", "Static"]
+git-tree-sha1 = "734fd90dd2f920a2f1921d5388dcebe805b262dc"
+uuid = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
+version = "0.1.14"
+
 [[deps.HypergeometricFunctions]]
 deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
 git-tree-sha1 = "d926e9c297ef4607866e8ef5df41cde1a642917f"
@@ -774,6 +947,11 @@ deps = ["Logging", "Random"]
 git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
 uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
 version = "0.2.2"
+
+[[deps.IfElse]]
+git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
+uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
+version = "0.1.1"
 
 [[deps.ImageAxes]]
 deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
@@ -950,6 +1128,12 @@ git-tree-sha1 = "f2355693d6778a178ade15952b7ac47a4ff97996"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
+[[deps.LayoutPointers]]
+deps = ["ArrayInterface", "LinearAlgebra", "ManualMemory", "SIMDTypes", "Static", "StaticArrayInterface"]
+git-tree-sha1 = "88b8f66b604da079a627b6fb2860d3704a6729a1"
+uuid = "10f19ff3-798f-405d-979b-55457f8fc047"
+version = "0.1.14"
+
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
@@ -1076,6 +1260,11 @@ git-tree-sha1 = "9926529455a331ed73c19ff06d16906737a876ed"
 uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
 version = "0.6.3"
 
+[[deps.ManualMemory]]
+git-tree-sha1 = "bcaef4fc7a0cfe2cba636d84cda54b5e4e4ca3cd"
+uuid = "d125e4d3-2237-4719-b19c-fa641b8a4667"
+version = "0.1.8"
+
 [[deps.MappedArrays]]
 git-tree-sha1 = "e8b359ef06ec72e8c030463fe02efe5527ee5142"
 uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
@@ -1107,18 +1296,6 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.0+0"
 
-[[deps.MeshViz]]
-deps = ["CategoricalArrays", "ColorSchemes", "Colors", "Makie", "Meshes", "ScientificTypes", "Tables"]
-git-tree-sha1 = "7b88fd905980a5eac7761a26ee850653dd8b4301"
-uuid = "9ecf9c4f-6e5a-4b5e-83ae-06f2c7a661d8"
-version = "0.7.5"
-
-[[deps.Meshes]]
-deps = ["Bessels", "CircularArrays", "Distances", "IterTools", "LinearAlgebra", "NearestNeighbors", "Random", "ReferenceFrameRotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "5cd413ae2079f4a98aa8b506add26a1656cb0de5"
-uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.28.1"
-
 [[deps.MetaGraphsNext]]
 deps = ["Graphs", "JLD2", "SimpleTraits"]
 git-tree-sha1 = "500e526a1f76b73ab7522f9580f86abef895de68"
@@ -1145,6 +1322,12 @@ version = "1.1.0"
 
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
+
+[[deps.MonteCarloMeasurements]]
+deps = ["Distributed", "Distributions", "ForwardDiff", "GenericSchur", "LinearAlgebra", "MacroTools", "Random", "RecipesBase", "Requires", "SLEEFPirates", "StaticArrays", "Statistics", "StatsBase", "Test"]
+git-tree-sha1 = "6d9caa10b362227519efd3f1f4ce6e8795c61c11"
+uuid = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
+version = "1.1.4"
 
 [[deps.MosaicViews]]
 deps = ["MappedArrays", "OffsetArrays", "PaddedViews", "StackViews"]
@@ -1189,12 +1372,6 @@ deps = ["PrettyPrint"]
 git-tree-sha1 = "1a0fa0e9613f46c9b8c11eee38ebb4f590013c5e"
 uuid = "71a1bf82-56d0-4bbc-8a3c-48b961074391"
 version = "0.1.5"
-
-[[deps.NearestNeighbors]]
-deps = ["Distances", "StaticArrays"]
-git-tree-sha1 = "2c3726ceb3388917602169bed973dbc97f1b51a8"
-uuid = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
-version = "0.4.13"
 
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore", "ImageMetadata"]
@@ -1350,12 +1527,6 @@ git-tree-sha1 = "a3c53ea2f575c82905fbce63df7c4c219518cc48"
 uuid = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
 version = "0.9.2"
 
-[[deps.PlantGeom]]
-deps = ["ColorSchemes", "Colors", "CoordinateTransformations", "EzXML", "LinearAlgebra", "Makie", "MeshViz", "Meshes", "MultiScaleTreeGraph", "Observables", "RecipesBase", "StaticArrays"]
-git-tree-sha1 = "a0a608c621fb778e2f6393407d96c477c1df7fee"
-uuid = "5edaa67e-25db-4eb9-bf81-05d793b2238d"
-version = "0.5.3"
-
 [[deps.PlantMeteo]]
 deps = ["CSV", "DataAPI", "DataFrames", "Dates", "HTTP", "JSON", "Statistics", "Tables", "Term", "YAML"]
 git-tree-sha1 = "426a28dcbbe2cb59aec71411a75c1c38c87e3f24"
@@ -1411,10 +1582,6 @@ version = "2.2.3"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-
-[[deps.Profile]]
-deps = ["Printf"]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 
 [[deps.ProgressLogging]]
 deps = ["Logging", "SHA", "UUIDs"]
@@ -1482,12 +1649,6 @@ git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
 version = "1.2.2"
 
-[[deps.ReferenceFrameRotations]]
-deps = ["Crayons", "LinearAlgebra", "Printf", "Random", "StaticArrays"]
-git-tree-sha1 = "ec9bde2e30bc221e05e20fcec9a36a9c315e04a6"
-uuid = "74f56ac7-18b3-5285-802d-d4bd4f104033"
-version = "3.0.0"
-
 [[deps.RelocatableFolders]]
 deps = ["SHA", "Scratch"]
 git-tree-sha1 = "90bc7a7c96410424509e4263e277e43250c05691"
@@ -1522,22 +1683,22 @@ git-tree-sha1 = "8b20084a97b004588125caebf418d8cab9e393d1"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
 version = "3.4.4"
 
+[[deps.SIMDTypes]]
+git-tree-sha1 = "330289636fb8107c5f32088d2741e9fd7a061a5c"
+uuid = "94e857df-77ce-4151-89e5-788b33177be4"
+version = "0.1.0"
+
+[[deps.SLEEFPirates]]
+deps = ["IfElse", "Static", "VectorizationBase"]
+git-tree-sha1 = "cda0aece8080e992f6370491b08ef3909d1c04e7"
+uuid = "476501e8-09a2-5ece-8869-fb82de89a1fa"
+version = "0.6.38"
+
 [[deps.ScanByte]]
 deps = ["Libdl", "SIMD"]
 git-tree-sha1 = "2436b15f376005e8790e318329560dcc67188e84"
 uuid = "7b38b023-a4d7-4c5e-8d43-3f3097f304eb"
 version = "0.3.3"
-
-[[deps.ScientificTypes]]
-deps = ["CategoricalArrays", "ColorTypes", "Dates", "Distributions", "PrettyTables", "Reexport", "ScientificTypesBase", "StatisticalTraits", "Tables"]
-git-tree-sha1 = "75ccd10ca65b939dab03b812994e571bf1e3e1da"
-uuid = "321657f4-b219-11e9-178b-2701a2544e81"
-version = "3.0.2"
-
-[[deps.ScientificTypesBase]]
-git-tree-sha1 = "a8e18eb383b5ecf1b5e6fc237eb39255044fd92b"
-uuid = "30f210dd-8aff-4c5f-94ba-8e64358c1161"
-version = "3.0.0"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -1636,6 +1797,18 @@ git-tree-sha1 = "46e589465204cd0c08b4bd97385e4fa79a0c770c"
 uuid = "cae243ae-269e-4f55-b966-ac2d0dc13c15"
 version = "0.1.1"
 
+[[deps.Static]]
+deps = ["IfElse"]
+git-tree-sha1 = "08be5ee09a7632c32695d954a602df96a877bf0d"
+uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
+version = "0.8.6"
+
+[[deps.StaticArrayInterface]]
+deps = ["ArrayInterface", "Compat", "IfElse", "LinearAlgebra", "Requires", "SnoopPrecompile", "SparseArrays", "Static", "SuiteSparse"]
+git-tree-sha1 = "fd5f417fd7e103c121b0a0b4a6902f03991111f4"
+uuid = "0d7ed370-da01-4f52-bd93-41d350b8b718"
+version = "1.3.0"
+
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "StaticArraysCore", "Statistics"]
 git-tree-sha1 = "b8d897fe7fa688e93aef573711cb207c08c9e11e"
@@ -1646,12 +1819,6 @@ version = "1.5.19"
 git-tree-sha1 = "6b7ba252635a5eff6a0b0664a41ee140a1c9e72a"
 uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 version = "1.4.0"
-
-[[deps.StatisticalTraits]]
-deps = ["ScientificTypesBase"]
-git-tree-sha1 = "30b9236691858e13f167ce829490a68e1a597782"
-uuid = "64bff920-2084-43da-a3e6-9bb72801c0c9"
-version = "3.2.0"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -1752,12 +1919,6 @@ git-tree-sha1 = "c42fa452a60f022e9e087823b47e5a5f8adc53d5"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
 version = "0.4.75"
 
-[[deps.TransformsBase]]
-deps = ["AbstractTrees"]
-git-tree-sha1 = "2412fb54902b0063c69c2bcfbec6b571120cc856"
-uuid = "28dd2a49-a57a-4bfb-84ca-1a49db9b96b8"
-version = "0.1.2"
-
 [[deps.Tricks]]
 git-tree-sha1 = "aadb748be58b492045b4f56166b5188aa63ce549"
 uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
@@ -1795,6 +1956,12 @@ deps = ["REPL"]
 git-tree-sha1 = "53915e50200959667e78a92a418594b428dffddf"
 uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
+
+[[deps.VectorizationBase]]
+deps = ["ArrayInterface", "CPUSummary", "HostCPUFeatures", "IfElse", "LayoutPointers", "Libdl", "LinearAlgebra", "SIMDTypes", "Static", "StaticArrayInterface"]
+git-tree-sha1 = "b182207d4af54ac64cbc71797765068fdeff475d"
+uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
+version = "0.21.64"
 
 [[deps.WeakRefStrings]]
 deps = ["DataAPI", "InlineStrings", "Parsers"]
@@ -1973,28 +2140,45 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─65ec1544-c81f-11ed-0a29-174eeb8e92e0
-# ╠═56757555-725c-49b8-8ad9-84d99052a0c8
-# ╟─8c41fd8a-648c-4d50-b39b-d6087b264d95
-# ╠═552692ae-2f8e-4ae1-88a0-5565edabdf3f
-# ╟─22f4ac9d-0181-476b-a3dd-277b2c5e31a2
-# ╠═2a106a14-3ab9-4ebc-87bd-8c86453a3166
-# ╟─c13c9dd7-3a8c-436a-9520-c638a76b7135
-# ╠═00877758-9349-4aa6-a2c8-ac2e50e150a0
-# ╟─e9293038-6179-481e-93c9-a619bcbce8ca
-# ╠═f02f400c-cc1f-4798-8045-e6fb93ec5647
-# ╟─59b1cdf2-d868-4fe3-87c3-700afd2cee0a
-# ╟─0ce68c8e-13a2-499d-86c1-59ea31c69f42
-# ╠═37f50a97-2842-4b12-ab70-ab56de09af0b
-# ╟─5376ccaf-a41a-4ad2-85a8-8b4badd4d938
-# ╠═801bb336-133d-4b2e-9ea7-9ea390451e59
-# ╠═aa546a40-3cd4-47c5-8ba8-020861402418
-# ╠═69739263-1458-4180-ac58-0901addca0ab
-# ╠═8cbf8ad6-916a-4114-9123-46fe2db1be11
-# ╟─a299a6d8-ead4-48a4-a346-c933c58a16db
-# ╟─e2e58a85-060f-4129-835f-bb06a9fea045
-# ╟─840c1748-0502-4d33-ad81-bf8047b58037
-# ╠═dd6a03d0-b0e9-45df-aee8-abc627497606
-# ╠═b7530979-76f5-4a0b-a23e-24f4e6d55aac
+# ╟─784cf9f4-ab7b-11ec-3405-8f1583059c6e
+# ╠═f8c48f62-e16e-4f39-9375-a5b7b7bf23b7
+# ╟─7c532414-cf98-4ab9-989e-d8770151c1c4
+# ╟─9f902046-f157-49f0-9a3b-7a6dfca9a00c
+# ╠═490cec9f-5709-422f-b59b-cc1a466b7b5b
+# ╠═e33b73ae-bd23-456c-a904-a52fa88e4969
+# ╟─94857d91-1d72-421f-b240-cc1cfca52223
+# ╟─5bf50080-0d90-4736-b945-3ce9b9244a7b
+# ╟─b67084d3-e930-4ebc-9f68-45b8610988a0
+# ╟─07768d61-2d8a-4344-a84e-0c5b5f7dd0c3
+# ╠═b7c0a856-4e04-4949-a3fe-ceafa8d3d65b
+# ╠═7b61e6ac-60f8-4d04-ab76-f44ef1f03cbd
+# ╟─78d1f8c3-3834-4786-8cc2-358de17938b3
+# ╠═3411f00e-aca5-432a-a0bc-288d0716cfd6
+# ╟─921ee23d-3159-4a83-b29d-87541c2c10d6
+# ╠═84818aed-10c2-4bcd-8584-5a32fdfeb839
+# ╟─6e1a68c4-f5c1-45a1-8781-c848370ae654
+# ╟─5da5a876-5986-44bb-8ae1-fae83c5e626f
+# ╠═a1be516a-3b10-4c4a-a219-7e34d3e8edd7
+# ╟─a61b92ca-4ae5-4b2a-993d-ae31143316d6
+# ╠═612c00e7-6abd-4023-a27a-c75c95a73e38
+# ╟─7bdc02d9-f7d7-48df-babc-1c5630f5a39d
+# ╠═f267250a-9950-427e-ad46-f5ee9f25136b
+# ╟─693d373f-37d4-4a8f-b9a1-18cf9f36c9fb
+# ╟─82f910b4-4c98-4f69-b818-c933ea3e9e8a
+# ╟─108e2a1e-d078-43c6-a490-b4e93d5f1da1
+# ╟─efbbae0c-47db-4322-8388-3d75ebfef553
+# ╠═518deea7-f7a5-4c41-87b1-2ecade7eadb4
+# ╟─32cfd745-2ff4-451c-8b09-d52d5fb8e5a0
+# ╟─a46a3ae6-cf66-4071-b546-931ba1c8abb7
+# ╟─87c7c5c6-3a73-4295-8fe0-8459a2e2c28f
+# ╟─05864aeb-0024-4848-9df9-2d66ccbcc1b7
+# ╟─5921ffc0-a5b8-45a2-8822-0ba6f6cab7f7
+# ╟─c8c915f8-b235-4b57-a1ef-ba6bda5f53db
+# ╟─06f589ac-7fa9-4881-8980-46b654515e06
+# ╟─43dafbf0-4bfd-4820-8162-3c2a56cca4db
+# ╟─e471e38c-2b28-4e56-bd5c-cb4383ba46ba
+# ╟─a67b71bb-38e5-4153-ae2d-d8fa252a34fc
+# ╟─f6196de0-85a1-4dc1-b3cd-b130279a944b
+# ╠═8feb20e2-76d1-4a13-8804-22ae9d1eae82
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

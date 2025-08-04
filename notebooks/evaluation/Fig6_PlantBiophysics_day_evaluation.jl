@@ -376,9 +376,9 @@ df_sim = let
 	    photosynthesis=Fvcb(VcMaxRef=VcMaxRef, JMaxRef=JMaxRef, RdRef=RdRef, TPURef=TPURef),
 	    stomatal_conductance=Medlyn(0.01, 3.42),
 	    status=(
-	        Rₛ=(df.PPFD ± (0.1 * df.PPFD)) / 4.57, # not / 0.48 because it is in the chamber, the source is only PAR
+	        Ra_SW_f=(df.aPPFD ± (0.1 * df.aPPFD)) / 4.57, # not / 0.48 because it is in the chamber, the source is only PAR
 	        sky_fraction=1.0,
-	        PPFD=df.PPFD ± (0.1 * df.PPFD),
+	        aPPFD=df.aPPFD ± (0.1 * df.aPPFD),
 	        d=Particles(Uniform(0.01, 0.10))
 	    ),
 	    type_promotion=Dict(Float64 => Particles{Float64,2000}),
@@ -397,7 +397,7 @@ df_sim = let
 			:Gₛ => :Gssim,
 			:Dₗ => :Dlsim,
 			:Tₗ => :Tlsim,
-			:PPFD
+			:aPPFD
 		)
 
 	df_sim
@@ -450,9 +450,9 @@ df_sim_forcedGs = let
         Fvcb(VcMaxRef=VcMaxRef, JMaxRef=JMaxRef, RdRef=RdRef, TPURef=TPURef),
         ForcedGs(),
         status=(
-            Rₛ=(df.PPFD ± (0.1 * df.PPFD)) / 4.57,
+            Ra_SW_f=(df.aPPFD ± (0.1 * df.aPPFD)) / 4.57,
             sky_fraction=1.0,
-            PPFD=df.PPFD ± (0.1 * df.PPFD),
+            aPPFD=df.aPPFD ± (0.1 * df.aPPFD),
             d=Particles(Uniform(0.01, 0.10)),
             Gₛ=df.Gₛ ± 0.0,
         ),
@@ -471,7 +471,7 @@ df_sim_forcedGs = let
         :Gₛ => :Gssim,
         :Dₗ => :Dlsim,
         :Tₗ => :Tlsim,
-        :PPFD,
+        :aPPFD,
     )
     df_
 end

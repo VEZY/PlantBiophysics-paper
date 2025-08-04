@@ -1,7 +1,5 @@
 # PlantBiophysics article website
 
-This is the repository for the Pluto notebooks related to the scientific paper about [PlantBiophysics.jl](https://github.com/VEZY/PlantBiophysics.jl).
+This website allows reproducing [PlantBiophysics.jl](https://github.com/VEZY/PlantBiophysics.jl)'s scientific paper.
 
-This repository automatically makes a website from these notebooks using Github actions and [the pluto course template](https://github.com/greimel/pluto-course-template).
-
-The website is available here: https://vezy.github.io/PlantBiophysics-paper/
+It is automatically built from Pluto notebooks and Github actions using [the pluto course template](https://github.com/greimel/pluto-course-template).
