@@ -201,7 +201,7 @@ for i in unique(df.Curve)
     for i = 1:length(dfi.T)
         config =
             :Weather => (
-                PFD=dfi.PPFD[i], # Note that we use PPFD here, not aPPFD because we pass the absorptance in the model
+                PFD=dfi.PPFD[i], # Note that we use PPFD here, not aPPFD because we pass the absorptance to the model
                 CO2=dfi.Cₐ[i],
                 RH=dfi.Rh[i] * 100,
                 T_air=dfi.T[i],
@@ -272,7 +272,7 @@ for i in unique(df.Curve)
         alpha = 0.425,theta = 0.7, Jmax = JMaxRef,
         Vcmax = VcMaxRef, TPU = TPURef,Rd = RdRef,
         RH = dfi$Rh*100,
-        PPFD=dfi$PPFD, # Note that we use PPFD here, not aPPFD because we pass the absorptance in the model
+        PPFD=dfi$PPFD, # Note that we use PPFD here, not aPPFD because we pass the absorptance to the model
         Patm = dfi$P,gk=0.,
         Tcorrect = FALSE
     )
@@ -443,7 +443,7 @@ begin
         markersize=ms,
         strokecolor=color_lg,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(
                 x -> x.variable == "A" && x.origin == "LeafGasExchange.jl",
                 stats,
@@ -458,7 +458,7 @@ begin
         markersize=ms,
         strokecolor=color_pe,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(x -> x.variable == "A" && x.origin == "plantecophys", stats).nRMSE[1],
         )
     )
@@ -470,14 +470,14 @@ begin
         markersize=ms,
         strokecolor=color_pb,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(
                 x -> x.variable == "A" && x.origin == "PlantBiophysics.jl",
                 stats,
             ).nRMSE[1],
         )
     )
-    axislegend(axa, title="nRMSE", position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
+    axislegend(axa, "nRMSE:", position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
 
     # Transpiration
     axb = Axis(
@@ -499,7 +499,7 @@ begin
         markersize=ms,
         strokecolor=color_lg,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(
                 x -> x.variable == "E" && x.origin == "LeafGasExchange.jl",
                 stats,
@@ -514,7 +514,7 @@ begin
         markersize=ms,
         strokecolor=color_pe,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(x -> x.variable == "E" && x.origin == "plantecophys", stats).nRMSE[1],
         )
     )
@@ -526,14 +526,14 @@ begin
         markersize=ms,
         strokecolor=color_pb,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(
                 x -> x.variable == "E" && x.origin == "PlantBiophysics.jl",
                 stats,
             ).nRMSE[1],
         )
     )
-    axislegend(axb, position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
+    axislegend(axb, "nRMSE:", position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
 
     # Stomatal conductance
     axc = Axis(
@@ -555,7 +555,7 @@ begin
         markersize=ms,
         strokecolor=color_lg,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(
                 x -> x.variable == "Gs" && x.origin == "LeafGasExchange.jl",
                 stats,
@@ -570,7 +570,7 @@ begin
         markersize=ms,
         strokecolor=color_pe,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(x -> x.variable == "Gs" && x.origin == "plantecophys", stats).nRMSE[1],
         ),
     )
@@ -582,7 +582,7 @@ begin
         markersize=ms,
         strokecolor=color_pb,
         strokewidth=stw,
-        label="nRMSE: " * string(
+        label=string(
             filter(
                 x -> x.variable == "Gs" && x.origin == "PlantBiophysics.jl",
                 stats,
@@ -590,7 +590,7 @@ begin
         )
     )
 
-    axislegend(axc, position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
+    axislegend(axc, "nRMSE:", position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
 
     # Leaf temperature
     axd = Axis(
@@ -637,25 +637,24 @@ begin
 
     axislegend(
         axd,
-        [PB, PE, LG],
+        [LG, PE, PB,],
         [
-            "nRMSE: " * string(
-                filter(
-                    x -> x.variable == "Tl" && x.origin == "PlantBiophysics.jl",
-                    stats,
-                ).nRMSE[1],
-            ),
-            "nRMSE: " * string(
-                filter(x -> x.variable == "Tl" && x.origin == "plantecophys", stats).nRMSE[1],
-            ),
-            "nRMSE: " * string(
+            string(
                 filter(
                     x -> x.variable == "Tl" && x.origin == "LeafGasExchange.jl",
                     stats,
                 ).nRMSE[1],
             ),
-        ],
-        " ",
+            string(
+                filter(x -> x.variable == "Tl" && x.origin == "plantecophys", stats).nRMSE[1],
+            ),
+            string(
+                filter(
+                    x -> x.variable == "Tl" && x.origin == "PlantBiophysics.jl",
+                    stats,
+                ).nRMSE[1],
+            ),],
+        "nRMSE:",
         position=:rb,
         orientation=:vertical,
         labelsize=legend_lab_size,
