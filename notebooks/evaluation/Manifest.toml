@@ -1696,9 +1696,9 @@ version = "0.3.3"
 
 [[deps.PlantBiophysics]]
 deps = ["CSV", "DataFrames", "Dates", "LsqFit", "OrderedCollections", "PlantMeteo", "PlantSimEngine", "RecipesBase", "Statistics", "YAML"]
-git-tree-sha1 = "8d1b75638ab5859d042de23ac5b44541ebe78fe9"
+git-tree-sha1 = "b49e4dd37fe89101c7248e2bd8d2a1b5ea258432"
 uuid = "7ae8fcfa-76ad-4ec6-9ea7-5f8f5e2d6ec9"
-version = "0.15.0"
+version = "0.16.0"
 
 [[deps.PlantMeteo]]
 deps = ["CSV", "Crayons", "DataAPI", "DataFrames", "Dates", "HTTP", "JSON", "PrettyTables", "Statistics", "Tables", "Term", "YAML"]

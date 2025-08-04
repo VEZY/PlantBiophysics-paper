@@ -396,7 +396,7 @@ begin
     col_lg = (93, 174, 139)
     col_pe = (112, 161, 215)
     transparency_col = 0.6
-    transparency_fill = 0.4
+    transparency_fill = 0.5
 
     color_pb = rgb(col_pb..., transparency_col)
     color_lg = rgb(col_lg..., transparency_col)
@@ -405,7 +405,7 @@ begin
     fill_lg = rgb(col_lg..., transparency_fill)
     fill_pe = rgb(col_pe..., transparency_fill)
 
-    stw = 1.5 # strokewidth
+    stw = 1.0 # strokewidth
     ms = 7 # markersize
     noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
     legend_lab_size = 10
@@ -678,4 +678,4 @@ begin
     fig
 end
 
-save("figure_global_simulation.png", fig, px_per_unit=6)
+save("figure_global_simulation.svg", fig, px_per_unit=6)

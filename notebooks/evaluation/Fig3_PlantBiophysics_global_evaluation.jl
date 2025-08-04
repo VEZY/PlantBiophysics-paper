@@ -80,7 +80,7 @@ df = let
         end
     end
 
-	df_
+    df_
 end
 
 # ╔═╡ e8961d19-85d4-484b-a029-359a9dbea800
@@ -428,7 +428,7 @@ md"""
 md"""
 The full validation that includes all three packages would give the following plot:
 
-![Full validation plot](https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/evaluation/figure_global_simulation.png)
+![Full validation plot](https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/evaluation/figure_global_simulation.svg)
 """
 
 # ╔═╡ 0ac70149-83d3-4056-9e1b-fc91dd7d44ca

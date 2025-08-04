@@ -2,7 +2,7 @@ using PlantBiophysics, PlantSimEngine, PlantMeteo
 import PlantBiophysics.gs_closure
 using DataFrames, CSV, Downloads
 using Statistics
-using MonteCarloMeasurements, Distributions
+using MonteCarloMeasurements
 import MonteCarloMeasurements: ±
 using CairoMakie, Colors
 using Dates
