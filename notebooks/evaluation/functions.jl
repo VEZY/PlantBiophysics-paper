@@ -60,14 +60,17 @@ end
 Load the Medlyn data using the working Figshare URL with fallback options.
 Uses the PlantBiophysics.read_licor6400 function to parse the data.
 """
-function load_medlyn_data(; abs=0.85)
+function load_medlyn_data(type="curve"; abs=0.85)
+    @assert type in ["curve", "spot"] "Type must be either 'curve' or 'spot'."
+    file_id = type == "curve" ? "3402635" : "3402638"
+
     # Try the working Figshare URL first
-    primary_url = "https://ndownloader.figshare.com/files/3402635"
+    primary_url = "https://ndownloader.figshare.com/files/$file_id"
 
     # Keep alternative URLs as backup
     alternative_urls = [
-        "https://figshare.com/ndownloader/files/3402635",
-        "https://figshare.com/download/file/3402635"
+        "https://figshare.com/ndownloader/files/$file_id",
+        "https://figshare.com/download/file/$file_id"
     ]
 
     # Try primary URL first
@@ -99,6 +102,6 @@ function load_medlyn_data(; abs=0.85)
     Possible solutions:
     1. Check your internet connection
     2. Try again later
-    3. Download the file manually from https://figshare.com/articles/dataset/Tumbarumba_Gas_Exchange/1538079
+    3. Download the file manually from https://doi.org/10.6084/m9.figshare.1538079.v1
     """)
 end

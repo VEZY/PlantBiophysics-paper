@@ -9,7 +9,7 @@ unsafe_comparisons(true)
 constants = Constants();
 
 df_Medlyn = let
-    df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402638"))
+    df_ = load_medlyn_data(type="spot"; abs=0.85)
     df_.Asim .= df_.Esim .= df_.Gssim .= df_.Dlsim .= df_.Tlsim .= 0.0 ± 0.0
     transform!(
         df_,
@@ -19,7 +19,7 @@ df_Medlyn = let
 end;
 
 df_curves = let
-    df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402635"))
+    df_ = load_medlyn_data(; abs=0.85)
     df_.Asim .= df_.Esim .= df_.Gssim .= df_.Dlsim .= df_.Tlsim .= 0.0 ± 0.0
     transform!(
         df_,

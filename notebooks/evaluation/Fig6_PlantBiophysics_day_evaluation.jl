@@ -39,12 +39,12 @@ md"""
 
 # ╔═╡ 9f902046-f157-49f0-9a3b-7a6dfca9a00c
 md"""
-The data is from Medlyn et al. (2015), see [here](https://figshare.com/articles/dataset/Tumbarumba_Gas_Exchange/1538079?file=3402641).
+The data is from Medlyn et al. (2015), see [here](https://doi.org/10.6084/m9.figshare.1538079.v1).
 """
 
 # ╔═╡ 490cec9f-5709-422f-b59b-cc1a466b7b5b
 df_Medlyn = let
-	df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402638"))
+	df_ = read_licor6400(Downloads.download("https://ndownloader.figshare.com/files/3402638"))
 	df_.Asim .= df_.Esim .= df_.Gssim .= df_.Dlsim .= df_.Tlsim .= 0. ± 0.
 	transform!(
 		df_,
@@ -55,7 +55,7 @@ end;
 
 # ╔═╡ e33b73ae-bd23-456c-a904-a52fa88e4969
 df_curves = let
-	df_ = read_licor6400(Downloads.download("https://figshare.com/ndownloader/files/3402635"))
+	df_ = read_licor6400(Downloads.download("https://ndownloader.figshare.com/files/3402635"))
 	df_.Asim .= df_.Esim .= df_.Gssim .= df_.Dlsim .= df_.Tlsim .= 0. ± 0.
 	transform!(
 		df_,

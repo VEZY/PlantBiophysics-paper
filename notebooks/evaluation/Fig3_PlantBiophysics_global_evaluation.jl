@@ -52,7 +52,7 @@ md"""
 
 # ╔═╡ ab97a0a5-d155-4758-a1d4-70e3a0b8c796
 md"""
-The data comes from Medlyn et al. (2015), see [here](https://figshare.com/articles/dataset/Tumbarumba_Gas_Exchange/1538079?file=3402641) for more details.
+The data comes from Medlyn et al. (2015), see [here](https://doi.org/10.6084/m9.figshare.1538079.v1) for more details.
 
 """
 
@@ -80,7 +80,7 @@ df = let
         end
     end
 
-	df_
+    df_
 end
 
 # ╔═╡ e8961d19-85d4-484b-a029-359a9dbea800
