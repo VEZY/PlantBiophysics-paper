@@ -55,12 +55,17 @@ function nBias(obs, sim; digits=2)
 end
 
 """
-    load_medlyn_data()
+    load_medlyn_data(; type="curve", abs=0.85)
 
 Load the Medlyn data using the working Figshare URL with fallback options.
 Uses the PlantBiophysics.read_licor6400 function to parse the data.
+
+# Arguments
+
+- `type="curve"`: Specifies the type of data to load, either "curve" or "spot" measurements.
+- `abs=0.85`: the leaf absorptance.
 """
-function load_medlyn_data(type="curve"; abs=0.85)
+function load_medlyn_data(; type="curve", abs=0.85)
     @assert type in ["curve", "spot"] "Type must be either 'curve' or 'spot'."
     file_id = type == "curve" ? "3402635" : "3402638"
 
