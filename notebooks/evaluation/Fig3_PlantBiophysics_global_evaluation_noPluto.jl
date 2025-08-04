@@ -111,6 +111,7 @@ for i in unique(df.Curve)
     dfiPE = dfi[:, 3:end]
     # rename!(dfiPE, :Tₗ => :Tleaf, :Cᵢ => :Ci, :Cₐ => :Ca, :Gₛ => :gs, :Dₗ => :VpdL)
     rename!(dfiPE, :Cₐ => :Ca, :Gₛ => :gs)
+    transform!(dfiPE, :gs => (x -> PlantBiophysics.gsc_to_gsw.(x)) => :gs) # Convert Gs to conductance to water vapor
     filter!(x -> x.A ./ (x.Ca) > 0.0, dfiPE)
     @rput dfiPE
     R"""
