@@ -35,7 +35,8 @@ if (!require('microbenchmark')) install.packages('microbenchmark', repos = "http
 # Parameters : fit them or download already fitted parameters
 ########################################################################
 
-df = load_medlyn_data()
+df = load_medlyn_data(abs=Leaf_abs)
+rename!(df, :PARi => :PPFD) # Rename Ttop to Tmin for consistency
 
 transform!(df, [:Date, :Time] => ((x, y) -> Date.(x, dateformat"Y/m/d") .+ y) => :Date)
 
@@ -62,7 +63,7 @@ for i in unique(df.Curve)
     df.g0[df.Curve.==i] .= g0
     df.g1[df.Curve.==i] .= g1
 
-    filter!(x -> x.aPPFD > 1400.0 * Leaf_abs, dfi)
+    filter!(x -> x.PPFD > 1400.0, dfi)
 
     VcMaxRef, JMaxRef, RdRef, TPURef, Tᵣ = collect(PlantSimEngine.fit(Fvcb, dfi, α=0.425, θ=0.7))
     df.VcMaxRef[df.Curve.==i] .= VcMaxRef
@@ -200,7 +201,7 @@ for i in unique(df.Curve)
     for i = 1:length(dfi.T)
         config =
             :Weather => (
-                PFD=dfi.aPPFD[i],
+                PFD=dfi.PPFD[i], # Note that we use PPFD here, not aPPFD because we pass the absorptance in the model
                 CO2=dfi.Cₐ[i],
                 RH=dfi.Rh[i] * 100,
                 T_air=dfi.T[i],
@@ -263,7 +264,7 @@ for i in unique(df.Curve)
         VPD=dfi$VPD,
         Wleaf = d,
         Ca = Ca,
-        # StomatalRatio = 1, LeafAbs = 0.86, # default values
+        StomatalRatio = 1, LeafAbs = $Leaf_abs,
         gsmodel = "BBOpti",
         g0 = g0, g1 = g1,
         EaV = 58550.0,EdVC = 2e+05, delsC = 629.26,
@@ -271,7 +272,7 @@ for i in unique(df.Curve)
         alpha = 0.425,theta = 0.7, Jmax = JMaxRef,
         Vcmax = VcMaxRef, TPU = TPURef,Rd = RdRef,
         RH = dfi$Rh*100,
-        PPFD=dfi$aPPFD,
+        PPFD=dfi$PPFD, # Note that we use PPFD here, not aPPFD because we pass the absorptance in the model
         Patm = dfi$P,gk=0.,
         Tcorrect = FALSE
     )
@@ -476,7 +477,7 @@ begin
             ).nRMSE[1],
         )
     )
-    axislegend(axa, position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
+    axislegend(axa, title="nRMSE", position=:rb, orientation=:vertical, labelsize=legend_lab_size, padding=0.0, framevisible=false,)
 
     # Transpiration
     axb = Axis(

@@ -60,7 +60,7 @@ end
 Load the Medlyn data using the working Figshare URL with fallback options.
 Uses the PlantBiophysics.read_licor6400 function to parse the data.
 """
-function load_medlyn_data()
+function load_medlyn_data(; abs=0.85)
     # Try the working Figshare URL first
     primary_url = "https://ndownloader.figshare.com/files/3402635"
 
@@ -73,7 +73,7 @@ function load_medlyn_data()
     # Try primary URL first
     try
         println("Downloading from primary URL: $primary_url")
-        return read_licor6400(Downloads.download(primary_url))
+        return read_licor6400(Downloads.download(primary_url); abs=abs)
     catch e
         println("Failed with primary URL: $(e)")
     end
@@ -82,7 +82,7 @@ function load_medlyn_data()
     for url in alternative_urls
         try
             println("Trying alternative URL: $url")
-            return read_licor6400(Downloads.download(url))
+            return read_licor6400(Downloads.download(url); abs=abs)
         catch e
             println("Failed with URL $url: $(e)")
             continue
