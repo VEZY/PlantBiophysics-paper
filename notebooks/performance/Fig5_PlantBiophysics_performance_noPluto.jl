@@ -149,15 +149,13 @@ for i = 1:N
         status=(
             Rₛ=set.Rs[i],
             sky_fraction=set.sky_fraction[i],
-            PPFD=set.PPFD[i],
+            aPPFD=set.PPFD[i],
             d=set.d[i],
         ),
     )
-    deps = PlantSimEngine.dep(leaf)
     meteo = Atmosphere(T=set.T[i], Wind=set.Wind[i], P=set.P[i], Rh=set.Rh[i], Cₐ=set.Ca[i])
-    st = PlantMeteo.row_struct(leaf.status[1])
-    b_PB = @benchmark run!($leaf, $deps, $st, $meteo, $constants, nothing) evals =
-        microbenchmark_evals samples = microbenchmark_steps
+    # run!(leaf, meteo, constants, nothing)
+    b_PB = @benchmark run!($leaf, $meteo, $constants, nothing) evals = microbenchmark_evals samples = microbenchmark_steps
     append!(time_PB, b_PB.times .* 1e-9) # transform in seconds
 end
 
@@ -229,7 +227,7 @@ function plot_benchmark_Makie(
     noto_sans = assetpath("fonts", "NotoSans-Regular.ttf")
     fig = Figure(
         backgroundcolor=backgroundcolor,
-        resolution=size_pt,
+        size=size_pt,
         font=noto_sans,
         fontsize=10,
     )
@@ -260,7 +258,7 @@ function plot_benchmark_Makie(
         axa,
         [stddevi, moy],
         ["95% confidence interval", "Mean"],
-        "",
+        " ",
         position=:rb,
         orientation=:vertical,
         labelsize=8,
