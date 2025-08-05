@@ -11,46 +11,51 @@ microbenchmark_evals = 1 # Number of times each sample is run to be sure of the 
 N = 100        # Number of timesteps simulated for each microbenchmark step
 
 # Create the ranges of input parameters
-length_range = 10000
-Rs = range(10, 500, length=length_range)
-Ta = range(18, 40, length=length_range)
-Wind = range(0.5, 20, length=length_range)
-P = range(90, 101, length=length_range)
-Rh = range(0.1, 0.98, length=length_range)
-Ca = range(360, 900, length=length_range)
-skyF = range(0.0, 1.0, length=length_range)
-d = range(0.001, 0.5, length=length_range)
-Jmax = range(200.0, 300.0, length=length_range)
-Vmax = range(150.0, 250.0, length=length_range)
-Rd = range(0.3, 2.0, length=length_range)
-TPU = range(5.0, 20.0, length=length_range)
-g0 = range(0.001, 2.0, length=length_range)
-g1 = range(0.5, 15.0, length=length_range)
-vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
+function make_meteo(N; length_range=10000)
+    Rs = range(10, 500, length=length_range)
+    Ta = range(18, 40, length=length_range)
+    Wind = range(0.5, 20, length=length_range)
+    P = range(90, 101, length=length_range)
+    Rh = range(0.1, 0.98, length=length_range)
+    Ca = range(360, 900, length=length_range)
+    skyF = range(0.0, 1.0, length=length_range)
+    d = range(0.001, 0.5, length=length_range)
+    Jmax = range(200.0, 300.0, length=length_range)
+    Vmax = range(150.0, 250.0, length=length_range)
+    Rd = range(0.3, 2.0, length=length_range)
+    TPU = range(5.0, 20.0, length=length_range)
+    g0 = range(0.001, 2.0, length=length_range)
+    g1 = range(0.5, 15.0, length=length_range)
+    vars = hcat([Ta, Wind, P, Rh, Ca, Jmax, Vmax, Rd, Rs, skyF, d, TPU, g0, g1])
 
-# Create the randomly drawn input set
-set = [rand.(vars) for i = 1:N]
-set = reshape(vcat(set...), (length(set[1]), length(set)))'
-name = [
-    "T",
-    "Wind",
-    "P",
-    "Rh",
-    "Ca",
-    "JMaxRef",
-    "VcMaxRef",
-    "RdRef",
-    "Rs",
-    "sky_fraction",
-    "d",
-    "TPURef",
-    "g0",
-    "g1",
-]
-set = DataFrame(set, name)
-@. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
-@. set[!, :PPFD] = set.Rs * 0.48 * 4.57
+    # Create the randomly drawn input set
+    set = [rand.(vars) for i = 1:N]
+    set = reshape(vcat(set...), (length(set[1]), length(set)))'
+    name = [
+        "T",
+        "Wind",
+        "P",
+        "Rh",
+        "Ca",
+        "JMaxRef",
+        "VcMaxRef",
+        "RdRef",
+        "Rs",
+        "sky_fraction",
+        "d",
+        "TPURef",
+        "g0",
+        "g1",
+    ]
 
+    set = DataFrame(set, name)
+    @. set[!, :vpd] = e_sat(set.T) - vapor_pressure(set.T, set.Rh)
+    @. set[!, :PPFD] = set.Rs * 0.48 * 4.57
+
+    return set
+end
+
+set = make_meteo(N)
 ######################################################################################################
 # BENCHMARKING PLANTECOPHYS
 ######################################################################################################
@@ -103,7 +108,7 @@ for(i in seq_len(N)){
 
 ######################################################################################################
 # BENCHMARKING LEAFGASEXCHANGE.JL
-######################################################################################################
+#############1#########################################################################################
 
 time_LG = []
 n_lg = fill(0, N)
@@ -366,99 +371,165 @@ CSV.write(
 # we don't have the variability between simulations
 
 # Parameters :
-# Random.seed!(1)
-# microbenchmark_steps2 = 1000 # Number of times the microbenchmark is run
-# microbenchmark_evals2 = 1 # Number of times each sample is run to be sure of the output
-# N2 = 100        # Number of timesteps simulated for each microbenchmark step
+Random.seed!(1)
+microbenchmark_steps2 = 100 # Number of times the microbenchmark is run
+microbenchmark_evals2 = 1 # Number of times each sample is run to be sure of the output
+N2 = 100        # Number of timesteps simulated for each microbenchmark step
+set2 = make_meteo(N2)
 
-# # Create the randomly drawn input set
-# set2 = [rand.(vars) for i in 1:N2]
-# set2 = reshape(vcat(set2...), (length(set2[1]), length(set2)))'
-# name = ["T", "Wind", "P", "Rh", "Ca", "JMaxRef", "VcMaxRef", "RdRef", "Rs", "sky_fraction", "d", "TPURef", "g0", "g1"]
-# set2 = DataFrame(set2, name)
-# @. set2[!, :vpd] = e_sat(set2.T) - vapor_pressure(set2.T, set2.Rh)
-# @. set2[!, :PPFD] = set2.Rs * 0.48 * 4.57
+# Make variables available to the R session
+@rput set2 N2 microbenchmark_steps2
+R"""
+m2 = microbenchmark(
+    PhotosynEB(
+        Tair = set2$T, VPD = set2$vpd, Wind = set2$Wind,
+        Wleaf = set2$d, Ca = set2$Ca,  StomatalRatio = 1,
+        LeafAbs = set2$sky_fraction, gsmodel = "BBOpti", g0 = set2$g0, g1 = set2$g1,
+        alpha = 0.24, theta = 0.7, Jmax = set2$JMaxRef,
+        Vcmax = set2$VcMaxRef, TPU = set2$TPURef, Rd = set2$RdRef,
+        RH = set2$Rh, PPFD=set2$PPFD, Patm = set2$P
+    ),
+    times = microbenchmark_steps2
+)
 
-# # Make variables available to the R session
-# @rput set2 N2 microbenchmark_steps2
-# R"""
-# m2 = microbenchmark(
-#     PhotosynEB(
-#         Tair = set2$T, VPD = set2$vpd, Wind = set2$Wind,
-#         Wleaf = set2$d, Ca = set2$Ca,  StomatalRatio = 1,
-#         LeafAbs = set2$sky_fraction, gsmodel = "BBOpti", g0 = set2$g0, g1 = set2$g1,
-#         alpha = 0.24, theta = 0.7, Jmax = set2$JMaxRef,
-#         Vcmax = set2$VcMaxRef, TPU = set2$TPURef, Rd = set2$RdRef,
-#         RH = set2$Rh, PPFD=set2$PPFD, Patm = set2$P
-#     ),
-#     times = microbenchmark_steps2
-# )
-
-#     time_PE2 = m2$time / N2 * 10e-9 # transform in seconds
-# """
-# @rget time_PE2
+    time_PE2 = m2$time / N2 * 10e-9 # transform in seconds
+"""
+@rget time_PE2
 
 
-# # Configuration:
-# leaves = [
-#     begin
-#         LeafModels(
-#             energy=Monteith(),
-#             photosynthesis=Fvcb(VcMaxRef=set2.VcMaxRef[i], JMaxRef=set2.JMaxRef[i], RdRef=set2.RdRef[i], TPURef=set2.TPURef[i]),
-#             stomatal_conductance=Medlyn(set2.g0[i], set2.g1[i]),
-#             Rₛ=set2.Rs[i], sky_fraction=set2.sky_fraction[i],
-#             PPFD=set2.PPFD[i], d=set2.d[i]
-#         )
-#     end for i in 1:size(set2, 1)
-# ]
+# Configuration:
+leaves = [
+    ModelList(
+        Monteith(), Medlyn(set2.g0[i], set2.g1[i]),
+        Fvcb(VcMaxRef=set2.VcMaxRef[i], JMaxRef=set2.JMaxRef[i], RdRef=set2.RdRef[i], TPURef=set2.TPURef[i]),
+        status=(
+            Rₛ=set2.Rs[i], sky_fraction=set2.sky_fraction[i],
+            aPPFD=set2.PPFD[i], d=set2.d[i]
+        )
+    ) for i in 1:size(set2, 1)
+]
 
-# meteos = [
-#     begin
-#         Atmosphere(T=set2.T[i], Wind=set2.Wind[i], P=set2.P[i], Rh=set2.Rh[i], Cₐ=set2.Ca[i])
-#     end for i in 1:size(set2, 1)
-# ]
-
-# function eval_PB(leaves, meteos)
-#     for i in 1:N2
-#         energy_balance!(leaves[i], meteos[i])
-#     end
-# end
-
+meteos = Weather([Atmosphere(T=set2.T[i], Wind=set2.Wind[i], P=set2.P[i], Rh=set2.Rh[i], Cₐ=set2.Ca[i]) for i in 1:size(set2, 1)])
+constants = Constants()
 # b_PB2 = @benchmark eval_PB($leaves, $meteos) evals = microbenchmark_evals2 samples = microbenchmark_steps2
-# time_PB2 = b_PB2.times ./ N2 .* 1e-9 # transform in seconds
+extra = nothing
+b_PB2 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals2 samples = microbenchmark_steps2
+time_PB2 = b_PB2.times ./ N2 .* 1e-9 # transform in seconds
+mean(time_PB2) * 1e6 # 600 μs per timestep
+# BenchmarkTools.Trial: 83 samples with 1 evaluation per sample.
+#  Range (min … max):  40.344 ms … 160.136 ms  ┊ GC (min … max): 42.36% … 76.13%
+#  Time  (median):     51.299 ms               ┊ GC (median):    47.33%
+#  Time  (mean ± σ):   60.771 ms ±  25.765 ms  ┊ GC (mean ± σ):  54.04% ±  9.07%
+
+# For LeafGasExchange:
+# This is useful to know the overhead cost from Julia to Python and back.
+configs = [
+    begin
+        :Weather => (
+            PFD=set2.PPFD[i],
+            CO2=set2.Ca[i],
+            RH=set2.Rh[i] * 100,
+            T_air=set2.T[i],
+            wind=set2.Wind[i],
+            P_air=set2.P[i],
+            g0=set2.g0[i],
+            g1=set2.g1[i],
+            Vcmax=set2.VcMaxRef[i],
+            Jmax=set2.JMaxRef[i],
+            Rd=set2.RdRef[i],
+            TPU=set2.TPURef[i]
+        )
+    end for i in 1:size(set2, 1)
+]
+b_LG2 = @benchmark simulate($ModelC3MD; configs=$configs) evals = microbenchmark_evals2 samples = microbenchmark_steps2
+time_LG2 = b_LG2.times ./ N2 .* 1e-9 # transform in seconds
 
 
-# # For LeafGasExchange:
-# # This is useful to know the overhead cost from Julia to Python and back.
-# configs = [
-#     begin
-#         :Weather => (
-#             PFD=set2.PPFD[i],
-#             CO2=set2.Ca[i],
-#             RH=set2.Rh[i] * 100,
-#             T_air=set2.T[i],
-#             wind=set2.Wind[i],
-#             P_air=set2.P[i],
-#             g0=set2.g0[i],
-#             g1=set2.g1[i],
-#             Vcmax=set2.VcMaxRef[i],
-#             Jmax=set2.JMaxRef[i],
-#             Rd=set2.RdRef[i],
-#             TPU=set2.TPURef[i]
-#         )
-#     end for i in 1:size(set2, 1)
-# ]
-# b_LG2 = @benchmark simulate($ModelC3MD; configs=$configs) evals = microbenchmark_evals2 samples = microbenchmark_steps2
-# time_LG2 = b_LG2.times ./ N2 .* 1e-9 # transform in seconds
+######################################################################################################
+# SAVING
+######################################################################################################
+
+statsPB2 = basic_stat(time_PB2)
+statsPE2 = basic_stat(time_PE2)
+statsLG2 = basic_stat(time_LG2)
+
+plot_benchmark(statsPB2, statsPE2, statsLG2)
+savefig("benchmark_all_steps.png")
 
 
-# ######################################################################################################
-# # SAVING
-# ######################################################################################################
 
-# statsPB2 = basic_stat(time_PB2)
-# statsPE2 = basic_stat(time_PE2)
-# statsLG2 = basic_stat(time_LG2)
 
-# plot_benchmark(statsPB2, statsPE2, statsLG2)
-# savefig("benchmark_all_steps.png")
+
+# Benchmarking PlantBiophysics on either one leaf and 1000 timesteps, or 1000 leaves and one timestep.
+
+microbenchmark_steps3 = 100 # Number of times the microbenchmark is run
+microbenchmark_evals3 = 1 # Number of times each sample is run to be sure of the output
+
+# One time-step, 1000 leaves:
+N_ts = 1
+N_leaves = 1000
+set3 = make_meteo(N_ts)
+i = 1
+leaves = [
+    ModelList(
+        Monteith(), Medlyn(set3.g0[i], set3.g1[i]),
+        Fvcb(VcMaxRef=set3.VcMaxRef[i], JMaxRef=set3.JMaxRef[i], RdRef=set3.RdRef[i], TPURef=set3.TPURef[i]),
+        status=(
+            Rₛ=set3.Rs[i], sky_fraction=set3.sky_fraction[i],
+            aPPFD=set3.PPFD[i], d=set3.d[i]
+        )
+    ) for l in 1:1000
+]
+
+meteos = Atmosphere(T=set3.T[i], Wind=set3.Wind[i], P=set3.P[i], Rh=set3.Rh[i], Cₐ=set3.Ca[i])
+constants = Constants()
+extra = nothing
+b_PB3 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
+time_PB_one_ts_1000_leaves_average = mean(b_PB3.times) .* 1e-6 # transform in ms for 1 time-step, 1000 leaves
+time_PB_one_ts_1000_leaves = time_PB_one_ts_1000_leaves_average / N_ts / N_leaves # in ms per timestep per leaf
+time_PB_one_ts_1000_leaves * 1e3 # 87.9 μs per timestep per leaf
+
+# 1000 time-steps, 1 leaf:
+N_ts = 1000
+set4 = make_meteo(N_ts)
+i = 1
+leaves =
+    ModelList(
+        Monteith(), Medlyn(set4.g0[i], set4.g1[i]),
+        Fvcb(VcMaxRef=set4.VcMaxRef[i], JMaxRef=set4.JMaxRef[i], RdRef=set4.RdRef[i], TPURef=set4.TPURef[i]),
+        status=(
+            Rₛ=set4.Rs[i], sky_fraction=set4.sky_fraction[i],
+            aPPFD=set4.PPFD[i], d=set4.d[i]
+        )
+    )
+meteos = Weather([Atmosphere(T=set4.T[i], Wind=set4.Wind[i], P=set4.P[i], Rh=set4.Rh[i], Cₐ=set4.Ca[i]) for i in 1:N_ts])
+constants = Constants()
+# b_PB2 = @benchmark eval_PB($leaves, $meteos) evals = microbenchmark_evals2 samples = microbenchmark_steps2
+extra = nothing
+b_PB4 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
+time_PB_1000_ts_one_leaf_mean = mean(b_PB4.times) .* 1e-6 # in ms
+time_PB_1000_ts_one_leaf = time_PB_1000_ts_one_leaf_mean / N_ts # transform in seconds
+mean(time_PB_1000_ts_one_leaf) * 1e6 # 26 μs per timestep
+
+# 1000 time-steps, 1000 leaves:
+N_ts = 1000
+set5 = make_meteo(N_ts)
+i = 1
+leaves = [
+    ModelList(
+        Monteith(), Medlyn(set5.g0[i], set5.g1[i]),
+        Fvcb(VcMaxRef=set5.VcMaxRef[i], JMaxRef=set5.JMaxRef[i], RdRef=set5.RdRef[i], TPURef=set5.TPURef[i]),
+        status=(
+            Rₛ=set5.Rs[i], sky_fraction=set5.sky_fraction[i],
+            aPPFD=set5.PPFD[i], d=set5.d[i]
+        )
+    ) for l in 1:1000
+]
+
+meteos = Weather([Atmosphere(T=set4.T[i], Wind=set4.Wind[i], P=set4.P[i], Rh=set4.Rh[i], Cₐ=set4.Ca[i]) for i in 1:N_ts])
+constants = Constants()
+extra = nothing
+
+b_PB5 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
+time_PB_1000_ts_1000_leaves_average = mean(b_PB5.times) .* 1e-9 # in s
+time_PB_1000_ts_1000_leaves = time_PB_1000_ts_1000_leaves_average / N_ts / N_leaves * 1e6 # in ms per timestep per leaf
