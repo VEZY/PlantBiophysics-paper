@@ -509,7 +509,7 @@ extra = nothing
 b_PB4 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
 time_PB_1000_ts_one_leaf_mean = mean(b_PB4.times) .* 1e-6 # in ms
 time_PB_1000_ts_one_leaf = time_PB_1000_ts_one_leaf_mean / N_ts # transform in seconds
-mean(time_PB_1000_ts_one_leaf) * 1e6 # 26 μs per timestep
+mean(time_PB_1000_ts_one_leaf) * 1e3 # 26 μs per timestep
 
 # 1000 time-steps, 1000 leaves:
 N_ts = 1000
@@ -532,4 +532,32 @@ extra = nothing
 
 b_PB5 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
 time_PB_1000_ts_1000_leaves_average = mean(b_PB5.times) .* 1e-9 # in s
-time_PB_1000_ts_1000_leaves = time_PB_1000_ts_1000_leaves_average / N_ts / N_leaves * 1e6 # in ms per timestep per leaf
+time_PB_1000_ts_1000_leaves = time_PB_1000_ts_1000_leaves_average / N_ts / N_leaves * 1e3 # in ms per timestep per leaf
+
+
+
+
+
+
+
+# 1 time-step, 1 leaf:
+N_ts = 1
+set6 = make_meteo(N_ts)
+i = 1
+leaves =
+    ModelList(
+        Monteith(), Medlyn(set6.g0[i], set6.g1[i]),
+        Fvcb(VcMaxRef=set6.VcMaxRef[i], JMaxRef=set6.JMaxRef[i], RdRef=set6.RdRef[i], TPURef=set6.TPURef[i]),
+        status=(
+            Rₛ=set6.Rs[i], sky_fraction=set6.sky_fraction[i],
+            aPPFD=set6.PPFD[i], d=set6.d[i]
+        )
+    )
+meteos = Atmosphere(T=set6.T[i], Wind=set6.Wind[i], P=set6.P[i], Rh=set6.Rh[i], Cₐ=set6.Ca[i])
+constants = Constants()
+# b_PB2 = @benchmark eval_PB($leaves, $meteos) evals = microbenchmark_evals2 samples = microbenchmark_steps2
+extra = nothing
+b_PB6 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
+time_PB_one_ts_one_leaf_mean = mean(b_PB6.times) .* 1e-6 # in ms
+time_PB_one_ts_one_leaf = time_PB_one_ts_one_leaf_mean / N_ts
+mean(time_PB_one_ts_one_leaf) * 1e3 # 26 μs per timestep
