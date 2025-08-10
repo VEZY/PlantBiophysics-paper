@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.13
 
 using Markdown
 using InteractiveUtils
@@ -60,7 +60,7 @@ md"""
 """
 
 # ╔═╡ 00877758-9349-4aa6-a2c8-ac2e50e150a0
-models = read_model(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/plant_coffee.yml"));
+models = read_model(Downloads.download("https://raw.githubusercontent.com/VEZY/PlantBiophysics-paper/main/notebooks/upscaling/plant_coffee.yml"))
 
 # ╔═╡ e9293038-6179-481e-93c9-a619bcbce8ca
 md"""
@@ -119,7 +119,7 @@ begin
 end
 
 # ╔═╡ 3282431f-7f80-4b6a-9b60-a193af435a66
-nleaves = length(descendants(mtg_sim_bench, symbol="Leaf"))
+n_leaves = length(descendants(mtg_sim_bench, symbol="Leaf"))
 
 # ╔═╡ 69739263-1458-4180-ac58-0901addca0ab
 n_meteo_steps = length(weather)
@@ -129,7 +129,24 @@ total_time_s = sum(times.times) / length(times.times) * 1e-9
 
 # ╔═╡ a299a6d8-ead4-48a4-a346-c933c58a16db
 md"""
-The simulation takes **$(round((total_time_s * 1e6) / (nleaves * n_meteo_steps), digits = 1)) μs** to run for each leaf, and **$(round(total_time_s, digits = 2)) s** for the whole plant on all time-steps.
+The simulation takes **$(round((total_time_s * 1e6) / (n_leaves * n_meteo_steps), digits = 1)) μs** to run for each leaf, and **$(round(total_time_s, digits = 2)) s** for the whole plant on all time-steps.
+"""
+
+# ╔═╡ 1cfd57b1-118a-42bf-ac13-e54327ff2761
+begin
+	function run_pb(mtg, models, weather, tracked_outputs)
+		mtg_sim_bench = deepcopy(mtg)
+		times = run!(mtg_sim, models, weather, tracked_outputs=tracked_outputs)
+	end
+	times_2 = @benchmark run_pb($mtg, $models, $weather, $vars_bench)
+	total_time_s_2 = sum(times_2.times) / length(times_2.times) * 1e-9
+	total_time_s_2_per_node = (total_time_s_2 * 1e6) / (n_leaves * n_meteo_steps)
+	times_2
+end
+
+# ╔═╡ cc36f357-e026-4212-b9dd-6f8e7b3381ef
+md"""
+If we add a copy of the MTG before running the simulation, the simulation would run in $(round(total_time_s_2_per_node, digits=2)) s in total, and $(round(total_time_s_2_per_node, digits=2)) μs per leaf and time-step:
 """
 
 # ╔═╡ e2e58a85-060f-4129-835f-bb06a9fea045
@@ -2535,6 +2552,8 @@ version = "4.1.0+0"
 # ╠═69739263-1458-4180-ac58-0901addca0ab
 # ╠═8cbf8ad6-916a-4114-9123-46fe2db1be11
 # ╟─a299a6d8-ead4-48a4-a346-c933c58a16db
+# ╟─cc36f357-e026-4212-b9dd-6f8e7b3381ef
+# ╟─1cfd57b1-118a-42bf-ac13-e54327ff2761
 # ╟─e2e58a85-060f-4129-835f-bb06a9fea045
 # ╟─840c1748-0502-4d33-ad81-bf8047b58037
 # ╠═dd6a03d0-b0e9-45df-aee8-abc627497606
