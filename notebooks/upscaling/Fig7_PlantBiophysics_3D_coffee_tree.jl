@@ -162,7 +162,7 @@ md"""
 
 # ╔═╡ dd6a03d0-b0e9-45df-aee8-abc627497606
 f = let
-	f, ax, p = plantviz(mtg_sim, color=:Tₗ, index=3)
+	f, ax, p = plantviz(mtg_sim, color=:Tₗ, index=1)
     colorbar(f[1, 2] , p, label="Leaf temperature (°C)")
     f
 end
@@ -206,7 +206,7 @@ PlutoUI = "~0.7.69"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.6"
 manifest_format = "2.0"
 project_hash = "89f1a08317c779dda6bf884e759febe20fc86b33"
 
@@ -1643,7 +1643,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
