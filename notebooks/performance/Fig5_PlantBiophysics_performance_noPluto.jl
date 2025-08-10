@@ -416,13 +416,18 @@ extra = nothing
 b_PB2 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals2 samples = microbenchmark_steps2
 time_PB2 = b_PB2.times ./ N2 .* 1e-9 # transform in seconds
 mean(time_PB2) * 1e6 # 600 μs per timestep
-# BenchmarkTools.Trial: 83 samples with 1 evaluation per sample.
-#  Range (min … max):  40.344 ms … 160.136 ms  ┊ GC (min … max): 42.36% … 76.13%
-#  Time  (median):     51.299 ms               ┊ GC (median):    47.33%
-#  Time  (mean ± σ):   60.771 ms ±  25.765 ms  ┊ GC (mean ± σ):  54.04% ±  9.07%
+#  Range (min … max):  34.426 ms … 149.017 ms  ┊ GC (min … max): 49.40% … 83.39%
+#  Time  (median):     44.679 ms               ┊ GC (median):    55.17%
+#  Time  (mean ± σ):   51.614 ms ±  21.050 ms  ┊ GC (mean ± σ):  60.09% ±  7.45%
 
+#     ▁▃█▇▆  ▁                                                    
+#   ▅▇██████▅█▅▅▇▅▁▁▇█▅▁▅▅▁▁▁▁▁▅▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▁▁▅▁▁▁▁▁▅▁▁▁▁▅ ▁
+#   34.4 ms       Histogram: log(frequency) by time       144 ms <
+
+#  Memory estimate: 646.03 MiB, allocs estimate: 740361.
 # For LeafGasExchange:
 # This is useful to know the overhead cost from Julia to Python and back.
+
 configs = [
     begin
         :Weather => (
@@ -533,12 +538,6 @@ extra = nothing
 b_PB5 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
 time_PB_1000_ts_1000_leaves_average = mean(b_PB5.times) .* 1e-9 # in s
 time_PB_1000_ts_1000_leaves = time_PB_1000_ts_1000_leaves_average / N_ts / N_leaves * 1e3 # in ms per timestep per leaf
-
-
-
-
-
-
 
 # 1 time-step, 1 leaf:
 N_ts = 1
