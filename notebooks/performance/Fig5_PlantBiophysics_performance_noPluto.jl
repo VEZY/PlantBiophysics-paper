@@ -1,7 +1,7 @@
 # To run this script, activate the environment in tutorials:
 # ]activate .
 
-using Random, Statistics, LaTeXStrings, DataFrames, BenchmarkTools, CairoMakie, CSV
+using Random, Statistics, DataFrames, BenchmarkTools, CairoMakie, CSV
 using Cropbox, LeafGasExchange, RCall, PlantBiophysics, PlantMeteo, PlantSimEngine
 
 # Parameters :
