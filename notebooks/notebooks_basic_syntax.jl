@@ -1,8 +1,14 @@
 ### A Pluto.jl notebook ###
-# v0.19.9
+# v0.20.13
 
 using Markdown
 using InteractiveUtils
+
+# ╔═╡ 6e618eb2-037a-4688-bc7b-53fda57993a1
+using PlutoUI
+
+# ╔═╡ ca26f490-bc68-4489-97cc-95a4c39097e5
+HTML("   <div style=\"\n   position: absolute;\n   width: calc(100% - 30px);\n   border: 50vw solid #282936;\n   border-top: 500px solid #282936;\n   border-bottom: none;\n   box-sizing: content-box;\n   left: calc(-50vw + 15px);\n   top: -500px;\n   height: 180px;\n   pointer-events: none;\n   \"></div>\n\n   <div style=\"\n   height: 180px;\n   width: 100%;\n   background: #282936;\n   color: #fff;\n   padding-top: 68px;\n   \">\n   <span style=\"\n   font-family: Vollkorn, serif;\n   font-weight: 700;\n   font-feature-settings: 'lnum', 'pnum';\n   \"> \n\n   <p style=\"text-align: center; font-size: 2rem;\">\n   <em>Julia Basics</em>\n   </p>\n\n\n\n   <style>\n   body {\n   overflow-x: hidden;\n   }\n   </style>")
 
 # ╔═╡ 0d3aec92-edeb-11ea-3adb-cd0dc17cbdab
 md"# Get started with Julia - live
@@ -218,9 +224,6 @@ Markdown.MD(
 _**Computational Thinking**, a live online Julia/Pluto textbook._ ([computationalthinking.mit.edu](https://computationalthinking.mit.edu), [original notebook](https://github.com/mitmath/18S191/blob/Fall20/lecture_notebooks/Basic%20Julia%20syntax.jl))
 """] 
 	))
-
-# ╔═╡ 6e618eb2-037a-4688-bc7b-53fda57993a1
-using PlutoUI
 
 # ╔═╡ f15d5b3e-7639-4d20-9cfd-ef6bc07451c3
 TableOfContents()
@@ -441,7 +444,7 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 """
 
 # ╔═╡ Cell order:
-# ╟─f5450eab-0f9f-4b7f-9b80-992d3c553ba9
+# ╟─ca26f490-bc68-4489-97cc-95a4c39097e5
 # ╟─0d3aec92-edeb-11ea-3adb-cd0dc17cbdab
 # ╟─3b038ee0-edeb-11ea-0977-97cc30d1c6ff
 # ╠═3e8e0ea0-edeb-11ea-22e0-c58f7c2168ce
