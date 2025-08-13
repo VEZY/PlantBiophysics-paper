@@ -540,6 +540,9 @@ time_PB_1000_ts_1000_leaves_average = mean(b_PB5.times) .* 1e-9 # in s
 time_PB_1000_ts_1000_leaves = time_PB_1000_ts_1000_leaves_average / N_ts / N_leaves * 1e3 # in ms per timestep per leaf
 
 # 1 time-step, 1 leaf:
+microbenchmark_steps6 = 100 # Number of times the microbenchmark is run
+microbenchmark_evals6 = 1 # Number of times each sample is run to be sure of the output
+
 N_ts = 1
 set6 = make_meteo(N_ts)
 i = 1
@@ -556,7 +559,7 @@ meteos = Atmosphere(T=set6.T[i], Wind=set6.Wind[i], P=set6.P[i], Rh=set6.Rh[i], 
 constants = Constants()
 # b_PB2 = @benchmark eval_PB($leaves, $meteos) evals = microbenchmark_evals2 samples = microbenchmark_steps2
 extra = nothing
-b_PB6 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals3 samples = microbenchmark_steps3
+b_PB6 = @benchmark run!($leaves, $meteos, $constants, $extra) evals = microbenchmark_evals6 samples = microbenchmark_steps6
 time_PB_one_ts_one_leaf_mean = mean(b_PB6.times) .* 1e-6 # in ms
 time_PB_one_ts_one_leaf = time_PB_one_ts_one_leaf_mean / N_ts
 mean(time_PB_one_ts_one_leaf) * 1e3 # 26 μs per timestep

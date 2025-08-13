@@ -62,8 +62,7 @@ leaf =
         )
     )
 
-# NB, we use ConstantAGs and not ConstantA because Monteith calls the photosynthesis,
-# not stomatal_conductance (stomatal_conductance is called inside the photosynthesis).
+# NB, we use ConstantA and not ConstantAGs because Monteith calls a photosynthesis model.
 out = run!(leaf, weather, cst)
 
 # Running the simulation:
