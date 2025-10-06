@@ -121,7 +121,7 @@ Using the same Taylor diagram for all the data is correct thanks to STD normaliz
 # ╔═╡ c55aa11f-8271-4948-8bbf-994e4ae0a77e
 begin
     # Plotting initial Taylor diagram
-    fig = taylordiagram([1], [1], [""], normalize=true, ang=pi / 2, rmsd_circ=false, figsize=800, dpi=600)
+    fig = taylordiagram([1], [1], [""], normalize=true, ang=pi / 2, rmsd_circ=false, figsize=1200, dpi=300)
 
     # Adding data label
     Plots.scatter!([1], [0], label="Data", markerstrokecolor=:black, markercolor=:black)
@@ -151,6 +151,9 @@ end
 
 # ╔═╡ b0da1851-55c4-4b14-87c7-8dc4ec5d5a99
 Plots.savefig(fig, "figure_global_simulation_taylor.svg")
+
+# ╔═╡ 6510e0db-8b37-46a8-ab95-11e0bafa0a25
+Plots.savefig(fig, "figure_global_simulation_taylor.png")
 
 # ╔═╡ fed09862-a99d-4aa7-b8ae-379f74b615e6
 md"""
@@ -254,7 +257,7 @@ TaylorDiag = "~0.2.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.6"
 manifest_format = "2.0"
 project_hash = "7806fbd0159e4e5536f922b9a65e8b533f62f89b"
 
@@ -1316,7 +1319,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -2256,6 +2259,7 @@ version = "1.9.2+0"
 # ╟─cd6a926f-60d4-45a1-85cd-7aa13ada73e0
 # ╠═c55aa11f-8271-4948-8bbf-994e4ae0a77e
 # ╠═b0da1851-55c4-4b14-87c7-8dc4ec5d5a99
+# ╠═6510e0db-8b37-46a8-ab95-11e0bafa0a25
 # ╟─fed09862-a99d-4aa7-b8ae-379f74b615e6
 # ╠═33963fb9-05e0-4133-8b7f-3e8f0d9f6e3b
 # ╟─2662a603-b92d-4b3d-87a4-a440d041fb38
