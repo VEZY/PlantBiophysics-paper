@@ -73,6 +73,7 @@ for i in unique(df.Curve)
     df.Tᵣ[df.Curve.==i] .= Tᵣ
 
     dfiPE = dfi[:, 3:end]
+    select!(dfiPE, Not([:Time]))
     P = mean(dfi.P)
     # rename!(dfiPE, :Tₗ => :Tleaf, :Cᵢ => :Ci, :Cₐ => :Ca, :Gₛ => :gs)
     @rput P
@@ -108,12 +109,12 @@ for i in unique(df.Curve)
     coefs = coef(fit)
     """
     @rget coefs
-    dfi = filter(x -> x.Curve == i, df)
-    dfiPE = dfi[:, 3:end]
+    dfiPE = filter(x -> x.Curve == i, df)
     # rename!(dfiPE, :Tₗ => :Tleaf, :Cᵢ => :Ci, :Cₐ => :Ca, :Gₛ => :gs, :Dₗ => :VpdL)
     rename!(dfiPE, :Cₐ => :Ca, :Gₛ => :gs)
     transform!(dfiPE, :gs => (x -> PlantBiophysics.gsc_to_gsw.(x)) => :gs) # Convert Gs to conductance to water vapor
     filter!(x -> x.A ./ (x.Ca) > 0.0, dfiPE)
+    select!(dfiPE, Not([:Time]))
     @rput dfiPE
     R"""
     dfiPE$Rh = dfiPE$Rh*100
@@ -247,7 +248,8 @@ failed =c()
 df.AsimPE .= df.EsimPE .= df.TlsimPE .= df.GssimPE .= df.PEfailed .= 0.0
 for i in unique(df.Curve)
     dfi = filter(x -> x.Curve == i, df)
-    dfi = dfi[:, 3:end]
+    # dfi = dfi[:, 3:end]
+    select!(dfi, Not([:Time]))
     @rput dfi
     Ca = dfi.Cₐ
     @rput Ca
@@ -362,6 +364,8 @@ if saving_simulations
     CSV.write("df_res.csv", df_res)
 end
 
+# df_res = CSV.read("df_res.csv", DataFrame)
+
 ########################################################################
 # Statistics
 ########################################################################
@@ -378,6 +382,8 @@ stats = combine(
 if saving_simulations
     CSV.write("statistics.csv", stats)
 end
+
+# stats = CSV.read("statistics.csv", DataFrame)
 
 ########################################################################
 # Plotting with Makie.jl
@@ -425,7 +431,7 @@ begin
     # Assimilation
     axa = Axis(
         fig[1, 2],
-        title="a) Net CO₂ assimilation (Aₙ)",
+        title="a) Net CO₂ assimilation (A)",
         titlealign=:left,
         backgroundcolor=:transparent,
     )
@@ -679,3 +685,4 @@ begin
 end
 
 save("figure_global_simulation.svg", fig, px_per_unit=6)
+save("figure_global_simulation.png", fig, px_per_unit=6)
