@@ -316,7 +316,7 @@ fig = let
 end
 
 # ╔═╡ 518deea7-f7a5-4c41-87b1-2ecade7eadb4
-save("figure_day.png", fig, px_per_unit=3);
+save("figure_day.png", fig, px_per_unit=10);
 
 # ╔═╡ a46a3ae6-cf66-4071-b546-931ba1c8abb7
 let

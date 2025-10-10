@@ -403,6 +403,8 @@ begin
     col_pe = (112, 161, 215)
     transparency_col = 0.6
     transparency_fill = 0.5
+    # backgroundcolor = :transparent
+    backgroundcolor = :white
 
     color_pb = rgb(col_pb..., transparency_col)
     color_lg = rgb(col_lg..., transparency_col)
@@ -422,7 +424,7 @@ begin
         size=size_pt,
         fontsize=12,
         xminorgridstyle=true,
-        backgroundcolor=:transparent,
+        backgroundcolor=backgroundcolor,
     )
 
     sideinfo1 = Label(fig[1:2, 1], "Simulations", rotation=pi / 2, fontsize=18)
@@ -433,7 +435,7 @@ begin
         fig[1, 2],
         title="a) Net CO₂ assimilation (A)",
         titlealign=:left,
-        backgroundcolor=:transparent,
+        backgroundcolor=backgroundcolor,
     )
 
     xlims!(-10.0, 50.0)
@@ -490,7 +492,7 @@ begin
         fig[1, 3],
         title="b) Transpiration rate (E)",
         titlealign=:left,
-        backgroundcolor=:transparent,
+        backgroundcolor=backgroundcolor,
     )
     xlims!(-0.5, 10.0)
     ylims!(-0.5, 10.0)
@@ -546,7 +548,7 @@ begin
         fig[2, 2],
         title="c) CO₂ stomatal conductance (Gₛ)",
         titlealign=:left,
-        backgroundcolor=:transparent,
+        backgroundcolor=backgroundcolor,
     )
     xlims!(-0.05, 0.85)
     ylims!(-0.05, 0.85)
@@ -603,7 +605,7 @@ begin
         fig[2, 3],
         title="d) Leaf temperature (Tₗ)",
         titlealign=:left,
-        backgroundcolor=:transparent,
+        backgroundcolor=backgroundcolor,
     )
     ablines!(axd, 0, 1, color=(:grey, 0.4), linewidth=4)
 
@@ -685,4 +687,4 @@ begin
 end
 
 save("figure_global_simulation.svg", fig, px_per_unit=6)
-save("figure_global_simulation.png", fig, px_per_unit=6)
+save("figure_global_simulation.png", fig, px_per_unit=10)

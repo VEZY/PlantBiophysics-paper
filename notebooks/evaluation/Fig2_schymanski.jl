@@ -70,7 +70,7 @@ out = run!(leaf, weather, cst)
 begin
     size_inches = (8, 6)
     size_pt = 72 .* size_inches
-    f = Figure(size=size_pt, fontsize=10, font=assetpath("fonts", "NotoSans-Regular.ttf"), backgroundcolor=:transparent)
+    f = Figure(size=size_pt, fontsize=10, font=assetpath("fonts", "NotoSans-Regular.ttf"), backgroundcolor=:white) # or :transparent
     ax = Axis(
         f[1, 1],
         # xlabel=L"Wind speed ($m \cdot s^{-1}$)",
@@ -96,4 +96,4 @@ begin
 end
 
 save("schymanski_et_al_2017_6a.svg", f, pt_per_unit=1)
-# save("schymanski_et_al_2017_6a.png", f, px_per_unit=6)
+save("schymanski_et_al_2017_6a.png", f, px_per_unit=10)

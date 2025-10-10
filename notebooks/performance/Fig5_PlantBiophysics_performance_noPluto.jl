@@ -205,13 +205,6 @@ function basic_stat(df)
     return StatResults(m, med, std, min, max)
 end
 
-statsPB = basic_stat(time_PB)
-statsPE = basic_stat(time_PE)
-statsLG = basic_stat(time_LG)
-
-factorPE = mean(time_PE) / mean(time_PB)
-factorLG = mean(time_LG) / mean(time_PB)
-
 ######################################################################################################
 # PLOTTING
 ######################################################################################################
@@ -322,19 +315,12 @@ end
 # SAVING
 ######################################################################################################
 
-# Save the figure:
-fig = plot_benchmark_Makie(
-    statsPB,
-    statsPE,
-    statsLG,
-    time_PB,
-    time_PE,
-    time_LG,
-    bins=1000,
-    backgroundcolor=:white,
-)
+statsPB = basic_stat(time_PB)
+statsPE = basic_stat(time_PE)
+statsLG = basic_stat(time_LG)
 
-save("benchmark_each_time_steps.png", fig, px_per_unit=6)
+factorPE = mean(time_PE) / mean(time_PB)
+factorLG = mean(time_LG) / mean(time_PB)
 
 # Write overall timings:
 df = DataFrame(
@@ -360,6 +346,32 @@ CSV.write(
         "sample_time" => vcat(time_PB, time_PE, time_LG),
     ),
 )
+
+df_full = CSV.read("benchmark_full.csv", DataFrame)
+
+time_PB = filter(row -> row.package == "PlantBiophysics", df_full).sample_time
+time_PE = filter(row -> row.package == "plantecophys", df_full).sample_time
+time_LG = filter(row -> row.package == "LeafGasExchange", df_full).sample_time
+statsPB = basic_stat(time_PB)
+statsPE = basic_stat(time_PE)
+statsLG = basic_stat(time_LG)
+
+factorPE = mean(time_PE) / mean(time_PB)
+factorLG = mean(time_LG) / mean(time_PB)
+
+# Save the figure:
+fig = plot_benchmark_Makie(
+    statsPB,
+    statsPE,
+    statsLG,
+    time_PB,
+    time_PE,
+    time_LG,
+    bins=1000,
+    backgroundcolor=:white,
+)
+
+save("benchmark_each_time_steps.png", fig, px_per_unit=10)
 
 
 ######################################################################################################
