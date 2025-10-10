@@ -171,7 +171,7 @@ f = let
 end
 
 # ╔═╡ b7530979-76f5-4a0b-a23e-24f4e6d55aac
-save("3d_coffee.png", f);
+save("3d_coffee.png", f, px_per_unit=10);
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
